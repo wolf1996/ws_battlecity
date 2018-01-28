@@ -5,24 +5,23 @@ use std::vec::Vec;
 use app::errors::MessageHandlerError;
 use std::collections::hash_map::Entry;
 use app::game::logic;
+use app::game::logic::Logic;
 
-#[derive(Debug)]
 pub struct Room {
     pub messages: Vec<logic::MessageContainer>,
+    pub logic : Logic,
 }
 
-#[derive(Debug)]
 pub struct RoomsManager {
     pub rooms: RwLock<HashMap<String, Room>>,
 }
 
 impl RoomsManager {
-    pub fn pass_mesage(&mut self, msg: logic::MessageContainer) ->  Result<(), MessageHandlerError>{
-        let mut mlock = & mut self.rooms;
-        let mut rooms = mlock.write().unwrap();
+    pub fn pass_mesage(&self, msg: logic::MessageContainer) ->  Result<(), MessageHandlerError>{
+        let mut rooms = self.rooms.write().unwrap();
         let room = match rooms.entry(msg.meta.user_name.clone()) {
             Entry::Occupied(o) => o.into_mut(),
-            Entry::Vacant(v) => v.insert(Room{messages: Vec::new()}),
+            Entry::Vacant(v) => v.insert(Room{messages: Vec::new(), logic: Logic::new()}),
         };
         room.messages.push(msg);
         Ok(())

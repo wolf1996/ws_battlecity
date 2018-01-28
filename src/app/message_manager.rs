@@ -10,6 +10,7 @@ use std::sync::RwLock;
 use std::collections::HashMap;
 use app::room_manager::Room;
 use app::game::logic;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct MessageMeta {
@@ -23,7 +24,8 @@ pub struct MessageContainer {
     pub message: String,
 }
 
-fn message_manager_worker(rec: mpsc::Receiver<MessageContainer>, rms: &mut RoomsManager) {
+fn message_manager_worker(rec: mpsc::Receiver<MessageContainer>, rms_arc: &mut Arc<RoomsManager>) {
+    let mut rms = rms_arc.as_ref();
     for i in rec {
         println!("{:?}", i);
         // TODO: добравить обработку ошибки
@@ -44,7 +46,7 @@ fn message_manager_worker_resp(rec: mpsc::Receiver<logic::ResponceContainer>) {
 pub fn start() -> mpsc::Sender<MessageContainer>{
     let (sender, reciever) = channel();
     let rms :RwLock<HashMap<String, Room>> = RwLock::new(HashMap::new());
-    let mut rmgr = RoomsManager{rooms: rms};
+    let mut rmgr = Arc::new(RoomsManager{rooms: rms});
     thread::spawn(move ||{message_manager_worker(reciever, &mut rmgr);});
     return sender;
 }
