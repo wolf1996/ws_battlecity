@@ -18,13 +18,16 @@ impl LogicWorker {
     fn worker(&mut self) {
         loop{
             for ll in self.rec.try_iter(){
-                self.games.push((ll, game_logic::Logic{ obj_list: Vec::new()}));
-                println!("New room \n \n \n ++++++++++++++++++++ \n \n \n ");
+                self.games.push((ll, game_logic::Logic::new()));
+                println!("\n\n\n New room \n \n \n ++++++++++++++++++++ \n \n \n ");
             };
             
-            for &(ref i, ref j) in &self.games{
+            for &mut(ref i, ref mut j) in &mut self.games{
                 for msg in i.try_iter(){
-                    println!("\n \n PROCESSED {:?} \n \n ", msg);
+                    match j.process_message(msg){
+                        Ok(some) => println!("OK {:?}", some),
+                        Err(some) =>  println!(" Some error in logic process {:?}", some),
+                    }
                 };
             };
             println!("\n \n TICK FINISHED \n \n ");

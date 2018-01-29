@@ -80,11 +80,14 @@ pub struct Logic {
 impl Logic {
     pub fn process_message(&mut self, msg :MessageContainer) -> errors::LogicResult<ResponceContainer>{
         let unit = msg.msg.unit;
+        if unit >= self.obj_list.len() {
+            return Err(errors::GameLogicError{info: "Invalid unit".to_string()});
+        }
         let ev = self.obj_list[unit].process(msg.clone())?;
         Ok(ResponceContainer{meta: msg.meta, resp: Responce{unit: msg.msg.unit, evs:ev}})
     }
 
     pub fn new() -> Logic{
-        Logic{obj_list: Vec::new()}
+        Logic{obj_list: vec![Box::new(tank::Tank::new()),]}
     }
 }

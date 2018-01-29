@@ -1,8 +1,14 @@
 use app::game::errors;
 use app::game::logic::{Position, GameObject, MessageContainer, Events};
 
-struct Tank {
+pub struct Tank {
     pos :Position,
+}
+
+impl Tank{
+    pub fn new() -> Tank{
+        Tank{pos: Position{x: 0.0, y:0.0}}
+    }
 }
 
 impl GameObject for Tank {
