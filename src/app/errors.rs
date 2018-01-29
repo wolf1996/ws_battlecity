@@ -3,6 +3,7 @@ extern crate ws;
 use self::ws::Error as WsError;
 use std::fmt;
 use std::error;
+use std::sync::mpsc::SendError;
 
 #[derive(Debug, Clone)]
 pub struct FailedToStart{
@@ -49,5 +50,11 @@ impl error::Error for MessageHandlerError {
 
     fn cause(&self) -> Option<&error::Error> {
         None
+    }
+}
+
+impl <T: Send> From<SendError<T>> for MessageHandlerError where T: Send {
+    fn from(errvar: SendError<T>) -> Self {
+        MessageHandlerError{info: errvar.to_string()}
     }
 }

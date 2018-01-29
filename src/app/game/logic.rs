@@ -11,7 +11,7 @@ pub struct Meta {
     pub user_name : String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)] 
 pub struct MessageContainer {
     pub msg :Message,
     pub meta :Meta,
@@ -74,7 +74,7 @@ pub trait GameObject {
 }
 
 pub struct Logic {
-    obj_list :  Vec<Box<GameObject + Send + Sync>>,
+    pub obj_list :  Vec<Box<GameObject + Send + Sync>>,
 }
 
 impl Logic {

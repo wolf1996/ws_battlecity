@@ -6,14 +6,18 @@ use app::errors::MessageHandlerError;
 use std::collections::hash_map::Entry;
 use app::game::logic;
 use app::game::logic::Logic;
+use std::sync::mpsc::{Sender, Receiver};
+use std::sync::mpsc::channel;
+use std::sync::Mutex;
 
 pub struct Room {
-    pub messages: Vec<logic::MessageContainer>,
+    pub messages: Mutex<Sender<logic::MessageContainer>>,
     pub logic : Logic,
 }
 
 pub struct RoomsManager {
     pub rooms: RwLock<HashMap<String, Room>>,
+    pub out: Mutex<Sender<Receiver<logic::MessageContainer>>>,
 }
 
 impl RoomsManager {
@@ -21,9 +25,15 @@ impl RoomsManager {
         let mut rooms = self.rooms.write().unwrap();
         let room = match rooms.entry(msg.meta.user_name.clone()) {
             Entry::Occupied(o) => o.into_mut(),
-            Entry::Vacant(v) => v.insert(Room{messages: Vec::new(), logic: Logic::new()}),
+            Entry::Vacant(v) => v.insert(self.produce_room()),
         };
-        room.messages.push(msg);
+        room.messages.lock().unwrap().send(msg)?;
         Ok(())
+    }
+    
+    fn produce_room(&self)  -> Room {
+        let (tx, rc) = channel();
+        self.out.lock().unwrap().send(rc);
+        Room{messages: Mutex::new(tx.clone()), logic: Logic::new()}
     }
 }

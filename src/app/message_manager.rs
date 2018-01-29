@@ -11,6 +11,8 @@ use std::collections::HashMap;
 use app::room_manager::Room;
 use app::game::logic;
 use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::mpsc::{Sender, Receiver};
 
 #[derive(Debug)]
 pub struct MessageMeta {
@@ -27,7 +29,6 @@ pub struct MessageContainer {
 fn message_manager_worker(rec: mpsc::Receiver<MessageContainer>, rms_arc: &mut Arc<RoomsManager>) {
     let mut rms = rms_arc.as_ref();
     for i in rec {
-        println!("{:?}", i);
         // TODO: добравить обработку ошибки
         let mut msg : logic::Message = serde_json::from_str(&i.message[..]).unwrap();
         match rms.pass_mesage(logic::MessageContainer{meta: logic::Meta{user_name: i.meta.name}, msg: msg}){
@@ -43,10 +44,9 @@ fn message_manager_worker_resp(rec: mpsc::Receiver<logic::ResponceContainer>) {
     };
 }
 
-pub fn start() -> mpsc::Sender<MessageContainer>{
+pub fn start(out :Sender<Receiver<logic::MessageContainer>>) -> mpsc::Sender<MessageContainer>{
     let (sender, reciever) = channel();
-    let rms :RwLock<HashMap<String, Room>> = RwLock::new(HashMap::new());
-    let mut rmgr = Arc::new(RoomsManager{rooms: rms});
+    let mut rmgr = Arc::new( RoomsManager{rooms: RwLock::new(HashMap::new()), out: Mutex::new(out.clone())});
     thread::spawn(move ||{message_manager_worker(reciever, &mut rmgr);});
     return sender;
 }
