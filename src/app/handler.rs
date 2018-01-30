@@ -16,7 +16,6 @@ struct WsHandler {
 
 impl Handler for  WsHandler{ 
     fn on_message(&mut self, msg: Message) -> Result<()> {
-        try!(self.out.send(msg.clone()));
         let messagestring = try!(msg.as_text().map(|i|i.to_string()));
         let meta = message_manager::MessageMeta{name: self.login.clone(), room: "first_room".to_string(), chan: self.out.clone()};
         let system_message = message_manager::MessageContainer{meta: meta, message: messagestring};

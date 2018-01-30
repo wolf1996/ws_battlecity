@@ -11,6 +11,7 @@ use app::game::logic::Responce;
 fn worker(rec: Receiver<(Box<Responce>, WsSender)>){
     for ( i, j) in &mut rec.iter() {
         let msg = *i;
+        println!("processing responce {:?}", msg);
         let msg_str = serde_json::to_string(&msg).unwrap();
         j.send(msg_str);
     }

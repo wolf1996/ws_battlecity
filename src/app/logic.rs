@@ -49,7 +49,7 @@ impl LogicWorker {
                 };
             };
             println!("\n \n TICK FINISHED \n \n ");
-            thread::sleep(time::Duration::from_secs(1));
+            thread::sleep(time::Duration::from_secs(10));
         };
     }
 }
