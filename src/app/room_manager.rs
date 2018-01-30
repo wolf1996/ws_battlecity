@@ -9,21 +9,22 @@ use app::game::logic::Logic;
 use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc::channel;
 use std::sync::Mutex;
+use app::logic as inf_logic;
 
 pub struct Room {
-    pub messages: Mutex<Sender<logic::MessageContainer>>,
+    pub messages: Mutex<Sender<inf_logic::MessageContainer>>,
     pub logic : Logic,
 }
 
 pub struct RoomsManager {
     pub rooms: RwLock<HashMap<String, Room>>,
-    pub out: Mutex<Sender<Receiver<logic::MessageContainer>>>,
+    pub out: Mutex<Sender<Receiver<inf_logic::MessageContainer>>>,
 }
 
 impl RoomsManager {
-    pub fn pass_mesage(&self, msg: logic::MessageContainer) ->  Result<(), MessageHandlerError>{
+    pub fn pass_mesage(&self, msg: inf_logic::MessageContainer) ->  Result<(), MessageHandlerError>{
         let mut rooms = self.rooms.write().unwrap();
-        let room = match rooms.entry(msg.meta.user_name.clone()) {
+        let room = match rooms.entry(msg.meta.room.clone()) {
             Entry::Occupied(o) => o.into_mut(),
             Entry::Vacant(v) => v.insert(self.produce_room()),
         };

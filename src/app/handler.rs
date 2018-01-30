@@ -18,13 +18,13 @@ impl Handler for  WsHandler{
     fn on_message(&mut self, msg: Message) -> Result<()> {
         try!(self.out.send(msg.clone()));
         let messagestring = try!(msg.as_text().map(|i|i.to_string()));
-        let meta = message_manager::MessageMeta{name: self.login.clone(), room: "first_room".to_string()};
+        let meta = message_manager::MessageMeta{name: self.login.clone(), room: "first_room".to_string(), chan: self.out.clone()};
         let system_message = message_manager::MessageContainer{meta: meta, message: messagestring};
         match self.system.send(system_message){
             Ok(_) => return Ok(()),
             Err(errval) => {
                 return Err(ws::Error{kind: ErrorKind::Custom(Box::new(errval)), details: Cow::from("some shit happens".to_string())})
-             } , 
+            } , 
         }
     }
 
