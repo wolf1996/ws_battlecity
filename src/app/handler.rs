@@ -17,18 +17,21 @@ struct WsHandler {
 impl Handler for  WsHandler{ 
     fn on_message(&mut self, msg: Message) -> Result<()> {
         let messagestring = try!(msg.as_text().map(|i|i.to_string()));
-        let meta = message_manager::MessageMeta{name: self.login.clone(), room: "first_room".to_string(), chan: self.out.clone()};
-        let system_message = message_manager::MessageContainer{meta: meta, message: messagestring};
+        let meta = message_manager::MessageMeta{name: self.login.clone(), room: "first_room".to_string()};
+        let system_message = message_manager::MessageContainer{meta: meta, message: message_manager::Content::Message( messagestring)};
         match self.system.send(system_message){
             Ok(_) => return Ok(()),
             Err(errval) => {
                 return Err(ws::Error{kind: ErrorKind::Custom(Box::new(errval)), details: Cow::from("some shit happens".to_string())})
-            } , 
+            }, 
         }
     }
 
     fn on_close(&mut self, code: CloseCode, reason: &str) {
         println!("WebSocket closing for ({:?}) {}, {}", code, reason, self.login);
+        let meta = message_manager::MessageMeta{name: self.login.clone(), room: "first_room".to_string()};
+        let system_message = message_manager::MessageContainer{meta: meta, message: message_manager::Content::Close};
+        self.system.send(system_message);
     }
 
     fn on_request(&mut self, req: &Request) -> Result<Response> {
@@ -60,6 +63,14 @@ impl Handler for  WsHandler{
             println!("Connection with {} now open", addr);
         }
         println!("Connection login {:?}", self.login);
+        let meta = message_manager::MessageMeta{name: self.login.clone(), room: "first_room".to_string()};
+        let system_message = message_manager::MessageContainer{meta: meta, message: message_manager::Content::Start(self.out.clone())};
+        match self.system.send(system_message){
+            Ok(_) => return Ok(()),
+            Err(errval) => {
+                return Err(ws::Error{kind: ErrorKind::Custom(Box::new(errval)), details: Cow::from("some shit happens".to_string())})
+            }, 
+        }
         Ok(())
     }
 }

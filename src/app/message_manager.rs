@@ -18,19 +18,42 @@ use app::logic as inf_logic;
 
 pub use app::logic::MessageMeta;
 
+
+pub enum Content {
+    Message(String),
+    Close,
+    Start(WsSender),
+}
+
 pub struct MessageContainer {
     pub meta: MessageMeta, 
-    pub message: String,
+    pub message: Content,
 }
 
 fn message_manager_worker(rec: mpsc::Receiver<MessageContainer>, rms_arc: &mut Arc<RoomsManager>) {
     let mut rms = rms_arc.as_ref();
     for i in rec {
         // TODO: добравить обработку ошибки
-        let mut msg : logic::Message = serde_json::from_str(&i.message[..]).unwrap();
-        match rms.pass_mesage(inf_logic::MessageContainer{meta: i.meta, message: msg}){
-            Ok(some) => some ,
-            Err(err) => println!("{:?}",err),
+        match i.message {
+            Content::Message(mgg) => {
+                let mut msg : logic::Message = serde_json::from_str(&mgg[..]).unwrap();
+                match rms.pass_mesage(inf_logic::MessageContainer{meta: i.meta, message: inf_logic::Content::Message(msg)}){
+                    Ok(some) => some ,
+                    Err(err) => println!("{:?}",err),
+                }
+            },
+            Content::Close => {
+                match rms.pass_mesage(inf_logic::MessageContainer{meta: i.meta, message: inf_logic::Content::Close}){
+                    Ok(some) => some ,
+                    Err(err) => println!("{:?}",err),
+                }
+            }
+            Content::Start(wssend) => {
+                match rms.pass_mesage(inf_logic::MessageContainer{meta: i.meta, message:inf_logic::Content::Start(wssend)}){
+                    Ok(some) => some ,
+                    Err(err) => println!("{:?}",err),
+                }
+            }
         }
     };
 }

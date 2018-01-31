@@ -13,7 +13,6 @@ use app::logic as inf_logic;
 
 pub struct Room {
     pub messages: Mutex<Sender<inf_logic::MessageContainer>>,
-    pub logic : Logic,
 }
 
 pub struct RoomsManager {
@@ -32,9 +31,29 @@ impl RoomsManager {
         Ok(())
     }
     
+    pub fn add_player(&self, msg: inf_logic::MessageContainer)->  Result<(), MessageHandlerError>{
+        let mut rooms = self.rooms.write().unwrap();
+        let room = match rooms.entry(msg.meta.room.clone()) {
+            Entry::Occupied(o) => o.into_mut(),
+            Entry::Vacant(v) => v.insert(self.produce_room()),
+        };
+        room.messages.lock().unwrap().send(msg)?;
+        Ok(())
+    }
+
+    pub fn remove_player(&self, msg: inf_logic::MessageContainer)->  Result<(), MessageHandlerError>{
+        let mut rooms = self.rooms.write().unwrap();
+        let room = match rooms.entry(msg.meta.room.clone()) {
+            Entry::Occupied(o) => o.into_mut(),
+            Entry::Vacant(v) => v.insert(self.produce_room()),
+        };
+        room.messages.lock().unwrap().send(msg)?;
+        Ok(())
+    }
+
     fn produce_room(&self)  -> Room {
         let (tx, rc) = channel();
         self.out.lock().unwrap().send(rc);
-        Room{messages: Mutex::new(tx.clone()), logic: Logic::new()}
+        Room{messages: Mutex::new(tx.clone())}
     }
 }
