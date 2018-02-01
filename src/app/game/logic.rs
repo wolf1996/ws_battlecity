@@ -1,10 +1,9 @@
 use app::game::tank;
-use app::game;
 use app::game::errors;
 use std::boxed::Box;
-use std::marker::Copy;
-use std::marker::Send;
-use std::marker::Sync;
+use std::collections::HashMap;
+use app::game::user::User;
+use app::game::errors::{GameLogicError, LogicResult};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Meta {
@@ -74,20 +73,41 @@ pub trait GameObject {
 }
 
 pub struct Logic {
-    pub obj_list :  Vec<Box<GameObject + Send + Sync>>,
+    pub obj_list :  Vec<Box<GameObject>>,
+    pub users : HashMap<String, User>
 }
 
 impl Logic {
-    pub fn process_message(&mut self, msg :MessageContainer) -> errors::LogicResult<ResponceContainer>{
+    pub fn process_message(&mut self, msg :MessageContainer) -> LogicResult<ResponceContainer>{
+        if self.users.len() != 2 {
+            return Err(GameLogicError{info: "No players".to_string()});
+        }
+        let user = self.users.get(&msg.meta.user_name).unwrap();
         let unit = msg.msg.unit;
         if unit >= self.obj_list.len() {
-            return Err(errors::GameLogicError{info: "Invalid unit".to_string()});
+            return Err(GameLogicError{info: "Invalid unit".to_string()});
         }
         let ev = self.obj_list[unit].process(msg.clone())?;
         Ok(ResponceContainer{meta: msg.meta, resp: Responce{unit: msg.msg.unit, evs:ev}})
     }
 
+    pub fn add_player(&mut self, user :String) -> LogicResult<()>{
+        if self.users.len() == 2 {
+            return Err(GameLogicError{info: "lobby is full".to_string()});
+        }
+        self.users.insert(user.clone(), User::new(user));
+        return Ok(());
+    }
+
+    pub fn remove_player(&mut self, user :String) -> LogicResult<()>{
+        if self.users.len() == 0 {
+            return Err(GameLogicError{info: "lobby is full".to_string()});
+        }
+        self.users.remove(&user);
+        Ok(())
+    }
+
     pub fn new() -> Logic{
-        Logic{obj_list: vec![Box::new(tank::Tank::new()),]}
+        Logic{obj_list: vec![Box::new(tank::Tank::new()),], users: HashMap::new()}
     }
 }

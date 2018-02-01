@@ -6,8 +6,6 @@ mod responce_manager;
 pub mod errors;
 pub mod game;
 
-
-use std::sync::mpsc::channel;
 use std::result::Result;
 
 pub fn start(addres: String) -> Result<(),errors::FailedToStart> {

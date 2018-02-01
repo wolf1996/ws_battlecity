@@ -9,7 +9,6 @@ use std::thread;
 use std::sync::mpsc::channel;
 use std::time;
 use app::logic;
-use std::ops::Deref;
 
 struct ChannelWrapper {
     log :game_logic::Logic,

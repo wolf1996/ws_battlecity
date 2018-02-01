@@ -1,11 +1,7 @@
 use std::sync::RwLock;
 use std::collections::HashMap;
-use app::game;
-use std::vec::Vec;
 use app::errors::MessageHandlerError;
 use std::collections::hash_map::Entry;
-use app::game::logic;
-use app::game::logic::Logic;
 use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc::channel;
 use std::sync::Mutex;

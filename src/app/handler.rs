@@ -35,7 +35,6 @@ impl Handler for  WsHandler{
     }
 
     fn on_request(&mut self, req: &Request) -> Result<Response> {
-        println!("Handler received request:\n{}", req);
         let mut login_found = false;
         for  i in req.headers(){
             if i.0 != "login"{
