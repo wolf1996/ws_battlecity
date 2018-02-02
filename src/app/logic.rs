@@ -58,11 +58,14 @@ impl LogicWorker {
                         }
                         Content::Close => {
                             println!("\n\n\n +++++++++++++++++ close  ++++++++++++++++++++ \n \n \n ");
+                            j.remove_player(msg.meta.name.clone());
                             self.clients.remove(&msg.meta.name);
                         }  
                         Content::Start(wssock) => {
                             println!("\n\n\n +++++++++++++++++ client  ++++++++++++++++++++ \n \n \n ");
+                            j.add_player(msg.meta.name.clone());
                             self.clients.insert(msg.meta.name, wssock);
+                            
                         }
                     };
                 };

@@ -6,6 +6,8 @@ use app::game::user::User;
 use app::game::errors::{GameLogicError, LogicResult};
 use app::game::user::Role;
 
+const MAX_PLAYERS : usize = 1;
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Meta {
     pub user_name : String,
@@ -84,7 +86,7 @@ pub struct Logic {
 
 impl Game {
     pub fn process_message(&mut self, msg :MessageContainer) -> LogicResult<ResponceContainer>{
-        if self.users.len() != 2 {
+        if self.users.len() < MAX_PLAYERS {
             return Err(GameLogicError{info: "No players".to_string()});
         }
         let mut user = self.users.get_mut(&msg.meta.user_name).unwrap();
@@ -93,7 +95,7 @@ impl Game {
     }
 
     pub fn add_player(&mut self, user :String) -> LogicResult<()>{
-        if self.users.len() == 2 {
+        if self.users.len() >= MAX_PLAYERS {
             return Err(GameLogicError{info: "lobby is full".to_string()});
         }
         self.users.insert(user.clone(), User::new(user));
