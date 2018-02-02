@@ -1,10 +1,11 @@
 use app::game::tank;
 use app::game::logic;
 use app::game::errors;
+use app::game::errors::GameLogicError;
 
 
-trait Role {
-    fn process_as(&mut self, logic::MessageContainer) -> errors::LogicResult<logic::Responce>;
+pub trait Role {
+    fn process_as(&mut self, &logic::MessageContainer, &mut logic::Logic) -> errors::LogicResult<logic::Responce>;
 }
 
 
@@ -23,7 +24,12 @@ impl User {
 }
 
 impl Role for User {
-    fn process_as(&mut self, mc :logic::MessageContainer) -> errors::LogicResult<logic::Responce> {
-        Ok(logic::Responce{unit: 1 ,evs: logic::Events::ChangePosition{pos: logic::Position{x:0.0, y:0.0}}})
+    fn process_as(&mut self, msg : &logic::MessageContainer, logic_cnt:  &mut logic::Logic) -> errors::LogicResult<logic::Responce> {
+        let unit = msg.msg.unit;
+        if unit >= logic_cnt.obj_list.len() {
+            return Err(GameLogicError{info: "Invalid unit".to_string()});
+        }
+        let ev = logic_cnt.obj_list[msg.msg.unit].process(msg.clone())?;
+        Ok(logic::Responce{unit: msg.msg.unit, evs:ev})
     }
 }

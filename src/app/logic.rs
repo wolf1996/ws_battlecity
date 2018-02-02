@@ -32,7 +32,7 @@ pub struct MessageContainer {
 
 struct LogicWorker {
     rec : Receiver<Receiver<MessageContainer>>,
-    games : Vec<(Receiver<MessageContainer>, game_logic::Logic)>,
+    games : Vec<(Receiver<MessageContainer>, game_logic::Game)>,
     resp : Sender<(Box<Responce>, WsSender)>,
     clients: HashMap<String, WsSender>,
 }
@@ -41,7 +41,7 @@ impl LogicWorker {
     fn worker(&mut self) {
         loop{
             for ll in self.rec.try_iter(){
-                self.games.push((ll, game_logic::Logic::new()));
+                self.games.push((ll, game_logic::Game::new()));
                 println!("\n\n\n +++++++++++++++++ New room  ++++++++++++++++++++ \n \n \n ");
             };
             
