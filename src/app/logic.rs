@@ -52,7 +52,11 @@ impl LogicWorker {
                             let wssender = self.clients.get(&msg.meta.name).unwrap();
                             let mcnt = game_logic::MessageContainer{msg: mg, meta : game_logic::Meta{user_name:msg.meta.name.clone()}};
                             match j.process_message(mcnt){
-                                Ok(some) =>  self.resp.send((Box::new(some.resp), wssender.clone())).unwrap(),
+                                Ok(some) =>  {
+                                    for i in some.resp{
+                                        self.resp.send((Box::new(i), wssender.clone())).unwrap();
+                                    };
+                                },
                                 Err(some) => println!(" Some error in logic process {:?}", some),
                             };
                         }
