@@ -7,17 +7,18 @@ use app::game::events;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Tank {
     pos :Position,
-    key :String,
-    owner :String,
+    key :usize,
+    owner :usize,
 }
 
 impl Tank {
     fn process_message_container (&mut self, msg :MessageContainer) ->  errors::LogicResult<Events>{
         println!("message processed {:?}", msg);
-        Ok(Events::ChangePosition{pos: Position{x: 0., y: 0.}})
+        self.pos.x += 1.0;
+        Ok(Events::ChangePosition{pos: self.pos.clone()})
     }
 
-    pub fn new(key: String, owner: String) -> Tank{
+    pub fn new(key: usize, owner: usize) -> Tank{
         Tank{pos: Position{x: 0.0, y:0.0}, key: key, owner: owner}
     }
 }
@@ -35,7 +36,7 @@ impl GameObject for Tank {
         Ok(Events::ChangePosition{pos: Position{x: 0., y: 0.}})
     }
 
-    fn key(&self) -> String {
+    fn key(&self) -> usize {
         self.key.clone()
     }
 }

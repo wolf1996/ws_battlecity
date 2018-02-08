@@ -83,7 +83,7 @@ pub enum Events {
 pub trait GameObject {
     fn process (&mut self, msg :Events) ->  LogicResult<Events>;
     fn tick (&mut self) ->  LogicResult<Events>;
-    fn key(&self) -> String;
+    fn key(&self) -> usize;
 }
 
 pub struct Game {
@@ -98,7 +98,7 @@ pub struct Logic {
 impl Game {
     pub fn process_message(&mut self, msg :MessageContainer) -> LogicResult<ResponceContainer>{
         let mut system =  Rc::get_mut(&mut self.logic.system).unwrap();
-        let evs = match system.pass_message("1".to_owned(),Events::Command(msg.clone())){
+        let evs = match system.pass_message(1,Events::Command(msg.clone())){
             Ok(some) => some,
             Err(er) => return Err(er),
         };

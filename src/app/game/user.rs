@@ -17,19 +17,19 @@ pub trait Role {
 
 
 pub struct User {
-    id: String,
+    id: usize,
     healpoints: i8,
     system    : Rc<Broker>,
 }
 
 impl User {
-    pub fn new(id: String, system: Rc<Broker>) -> User{
+    pub fn new(id: usize, system: Rc<Broker>) -> User{
         User{id: id, healpoints: 3, system: system}
     }
 
     pub fn spawn_tank(&mut self) -> errors::LogicResult<logic::Events>{
         let mut stm : &mut Broker = Rc::get_mut(&mut self.system).unwrap();
-        let key: String = stm.produceKey();
+        let key = stm.produceKey();
         let tank = tank::Tank::new(key, self.id.clone());
         stm.add_system(Rc::new(tank.clone()));
         stm.subscribe(tank.key(), self.id.clone());
@@ -49,7 +49,7 @@ impl GameObject for User {
         Ok(logic::Events::ChangePosition{pos: Position{x: 0., y: 0.}})
     }
 
-    fn key(&self) -> String {
+    fn key(&self) -> usize {
         self.id.clone()
     }
 }
