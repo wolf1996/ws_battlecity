@@ -2,11 +2,12 @@ use std::collections::HashMap;
 use app::game::logic::GameObject;
 use app::game::errors;
 use app::game::logic::Events as MessageEvents;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 pub struct Broker {
-    channels :HashMap<usize, Vec<Rc<GameObject>>>, 
-    units    :HashMap<usize, Rc<GameObject>>,
+    channels :HashMap<usize, Vec<Rc<RefCell<GameObject>>>>, 
+    units    :HashMap<usize, Rc<RefCell<GameObject>>>,
     counter  :usize,
 }
 
@@ -16,7 +17,7 @@ impl Broker {
             Some(some) => some,
             None => return Err(errors::GameLogicError{info:"No such unit".to_string()}),
         };
-        let un = Rc::get_mut(unit).unwrap();
+        let mut un = RefCell::borrow_mut(unit);
         let rsp = match un.process(evnt) {
             Ok(expr) => expr,
             Err(err) => return Err(err),
@@ -25,10 +26,10 @@ impl Broker {
     }
 
     //TODO: Хранить массив Rc по ключу и осуществлять подписки через ключ
-    pub fn add_system(&mut self, gobjo: Rc<GameObject>) -> errors::LogicResult<()> {
-        let mut gobj = gobjo;
+    pub fn add_system(&mut self, gobjo: Rc<RefCell<GameObject>>) -> errors::LogicResult<()> {
+        let gobj = gobjo.borrow();
         self.channels.entry(gobj.key()).or_insert(Vec::new());
-        self.units.insert(gobj.key() ,gobj.clone());
+        self.units.insert(gobj.key() ,Rc::clone(&gobjo));
         Ok(())
     }
 
@@ -52,7 +53,7 @@ impl Broker {
                 None => return Err(errors::GameLogicError{info:"No such channel".to_string()}),
             };
             for i in &mut subs.iter_mut(){
-                let mut gobj = Rc::get_mut(i).unwrap(); 
+                let mut gobj = RefCell::borrow_mut(i); 
                 let evs = gobj.process(evnt.clone());
                 for j in evs{
                     events.push((gobj.key(), j));

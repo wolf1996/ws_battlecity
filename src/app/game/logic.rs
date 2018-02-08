@@ -4,8 +4,8 @@ use std::boxed::Box;
 use std::collections::HashMap;
 use app::game::user::User;
 use app::game::errors::{GameLogicError, LogicResult};
-use app::game::user::Role;
 use app::game::events;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 const MAX_PLAYERS : usize = 1;
@@ -87,25 +87,25 @@ pub trait GameObject {
 }
 
 pub struct Game {
-    pub users : HashMap<String, User>,
+    pub users : HashMap<String, Rc<RefCell<User>>>,
     pub logic : Logic,
 }
 
 pub struct Logic {
-    pub system : Rc<events::Broker>,
+    pub system : Rc<RefCell<events::Broker>>,
 }
 
 impl Game {
     pub fn process_message(&mut self, msg :MessageContainer) -> LogicResult<ResponceContainer>{
-        let mut system =  Rc::get_mut(&mut self.logic.system).unwrap();
-        let evs = match system.pass_message(1,Events::Command(msg.clone())){
+        let mut system =  RefCell::borrow_mut(&mut self.logic.system);
+        let evs = match system.pass_direct
+        (msg.msg.unit ,Events::Command(msg.clone())){
             Ok(some) => some,
             Err(er) => return Err(er),
         };
         let events = evs.into_iter().map(|i|{
-            let (_, ev) = i;
-            //TODO: разобраться с идентификаторами
-            Responce{unit: 1, evs:ev } 
+            let (id, ev) = i;
+            Responce{unit: id, evs:ev } 
         }).collect();
         Ok(ResponceContainer{meta: msg.meta, resp: events})
     }
@@ -114,8 +114,10 @@ impl Game {
         if self.users.len() >= MAX_PLAYERS {
             return Err(GameLogicError{info: "lobby is full".to_string()});
         }
-        let key =  Rc::get_mut(&mut self.logic.system).unwrap().produceKey().clone();
-        User::new(key,self.logic.system.clone());
+        let key = self.logic.system.borrow_mut().produceKey().clone();
+        let mut us = User::new(key,Rc::clone(&mut self.logic.system));
+        us.spawn_tank(); // TODO: этого тут быть не должно
+        self.users.insert(user, Rc::new(RefCell::new(us)));
         return Ok(());
     }
 
@@ -140,6 +142,6 @@ impl Game {
     }
 
     pub fn new() -> Game{
-        Game{logic: Logic{system: Rc::new(events::Broker::new())}, users: HashMap::new()}
+        Game{logic: Logic{system: Rc::new(RefCell::new(events::Broker::new()))}, users: HashMap::new()}
     }
 }

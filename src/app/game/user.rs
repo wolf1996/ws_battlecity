@@ -10,28 +10,31 @@ use app::game::logic::Events;
 use app::game::logic::GameObject;
 use std::borrow::Borrow;
 use app::game::events::Broker;
+use std::cell::RefCell;
 
-pub trait Role {
-    fn process_as(&mut self, &logic::MessageContainer, &mut logic::Logic) -> errors::LogicResult<logic::Responce>;
+#[derive(Debug)]
+enum State {
+    Created,
+    Finished,
+    Alive,
 }
-
 
 pub struct User {
     id: usize,
     healpoints: i8,
-    system    : Rc<Broker>,
+    system    : Rc<RefCell<Broker>>,
 }
 
 impl User {
-    pub fn new(id: usize, system: Rc<Broker>) -> User{
+    pub fn new(id: usize, system: Rc<RefCell<Broker>>) -> User{
         User{id: id, healpoints: 3, system: system}
     }
 
     pub fn spawn_tank(&mut self) -> errors::LogicResult<logic::Events>{
-        let mut stm : &mut Broker = Rc::get_mut(&mut self.system).unwrap();
+        let mut stm = self.system.borrow_mut();
         let key = stm.produceKey();
         let tank = tank::Tank::new(key, self.id.clone());
-        stm.add_system(Rc::new(tank.clone()));
+        stm.add_system(Rc::new(RefCell::new(tank.clone())));
         stm.subscribe(tank.key(), self.id.clone());
         Ok(logic::Events::Spawned(logic::Unit::Tank(tank)))
     }
