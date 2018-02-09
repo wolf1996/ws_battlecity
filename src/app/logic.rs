@@ -92,8 +92,18 @@ impl LogicWorker {
                     };
                 };
             };
+            for ref mut game in &mut self.games{
+                match game.game.tick(){
+                    Ok(some) =>  {
+                        for i in some.resp{
+                            game.broadcast(Box::new(i));
+                        };
+                    },
+                    Err(some) => println!(" Some error in logic tick {:?}", some),
+                };
+            };
             println!("\n \n TICK FINISHED \n \n ");
-            thread::sleep(time::Duration::from_secs(10));
+            thread::sleep(time::Duration::from_secs(20));
         };
     }
 }

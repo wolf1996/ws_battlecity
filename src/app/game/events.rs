@@ -12,6 +12,18 @@ pub struct Broker {
 }
 
 impl Broker {
+
+    pub fn tick(&mut self)-> errors::LogicResult<Vec<(usize, MessageEvents)>> {
+        let mut events = Vec::new();
+        for (ref unit, ref gobj) in &mut self.units.iter_mut() {
+            let evs = gobj.borrow_mut().tick();
+            for j in evs{
+                events.push((gobj.borrow_mut().key(), j));
+            };
+        }
+        Ok(events)
+    }
+
     pub fn pass_direct(&mut self, key: usize, evnt: MessageEvents) -> errors::LogicResult<Vec<(usize, MessageEvents)>> {
         let mut unit = match self.units.get_mut(&key){
             Some(some) => some,

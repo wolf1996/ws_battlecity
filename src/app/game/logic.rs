@@ -115,7 +115,7 @@ impl Game {
         }
         let key = RefCell::borrow_mut(&mut self.logic.system).produceKey().clone();
         let mut us = User::new(key,Rc::clone(&mut self.logic.system));
-        // us.spawn_tank();
+        us.spawn_tank();
         self.users.insert(user, Rc::new(RefCell::new(us)));
         return Ok(());
     }
@@ -128,16 +128,17 @@ impl Game {
         Ok(())
     }
 
-    pub fn tick(&mut self) ->  Vec<LogicResult<Responce>>{
-        let mut vc: Vec<LogicResult<Responce>> = Vec::new();
-        // for (ref ind, ref mut i) in &mut self.logic.obj_list.iter_mut().enumerate() {
-        //     match i.tick() {
-        //         Ok(some) => vc.push(Ok(Responce{unit: *ind, evs: vec![some, ]})),
-        //         Err(err) => vc.push(Err(err)),
-        //     };
-            
-        // }
-        return vc;
+    pub fn tick(&mut self) ->  LogicResult<ResponceContainer>{
+        let mut system =  RefCell::borrow_mut(&mut self.logic.system);
+        let evs = match system.tick(){
+            Ok(some) => some,
+            Err(er) => return Err(er),
+        };
+        let events = evs.into_iter().map(|i|{
+            let (id, ev) = i;
+            Responce{unit: id, evs:ev } 
+        }).collect();
+        Ok(ResponceContainer{meta: Meta{user_name: "".to_owned()}, resp: events})
     }
 
     pub fn new() -> Game{
