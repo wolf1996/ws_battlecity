@@ -98,8 +98,7 @@ pub struct Logic {
 impl Game {
     pub fn process_message(&mut self, msg :MessageContainer) -> LogicResult<ResponceContainer>{
         let mut system =  RefCell::borrow_mut(&mut self.logic.system);
-        let evs = match system.pass_direct
-        (msg.msg.unit ,Events::Command(msg.clone())){
+        let evs = match system.pass_direct(msg.msg.unit ,Events::Command(msg.clone())){
             Ok(some) => some,
             Err(er) => return Err(er),
         };
@@ -114,7 +113,7 @@ impl Game {
         if self.users.len() >= MAX_PLAYERS {
             return Err(GameLogicError{info: "lobby is full".to_string()});
         }
-        let key = self.logic.system.borrow_mut().produceKey().clone();
+        let key = RefCell::borrow_mut(&mut self.logic.system).produceKey().clone();
         let mut us = User::new(key,Rc::clone(&mut self.logic.system));
         us.spawn_tank(); // TODO: этого тут быть не должно
         self.users.insert(user, Rc::new(RefCell::new(us)));

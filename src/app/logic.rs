@@ -30,9 +30,15 @@ pub struct MessageContainer {
     pub message: Content,
 }
 
+struct GameContainer{
+    pub channel :Receiver<MessageContainer>,
+    pub game : game_logic::Game,
+    pub users : Vec<String>,
+}
+
 struct LogicWorker {
     rec : Receiver<Receiver<MessageContainer>>,
-    games : Vec<(Receiver<MessageContainer>, game_logic::Game)>,
+    games : Vec<GameContainer>,
     resp : Sender<(Box<Responce>, WsSender)>,
     clients: HashMap<String, WsSender>,
 }
@@ -41,17 +47,22 @@ impl LogicWorker {
     fn worker(&mut self) {
         loop{
             for ll in self.rec.try_iter(){
-                self.games.push((ll, game_logic::Game::new()));
+                let cont = GameContainer{
+                    channel :ll,
+                    game    :game_logic::Game::new(),
+                    users   :Vec::new(),
+                };
+                self.games.push(cont);
                 println!("\n\n\n +++++++++++++++++ New room  ++++++++++++++++++++ \n \n \n ");
             };
             
-            for &mut(ref i, ref mut j) in &mut self.games{
-                for msg in i.try_iter(){
+            for ref mut game in &mut self.games{
+                for msg in game.channel.try_iter(){
                     match msg.message{
                         Content::Message(mg) => {
                             let wssender = self.clients.get(&msg.meta.name).unwrap();
                             let mcnt = game_logic::MessageContainer{msg: mg, meta : game_logic::Meta{user_name:msg.meta.name.clone()}};
-                            match j.process_message(mcnt){
+                            match game.game.process_message(mcnt){
                                 Ok(some) =>  {
                                     for i in some.resp{
                                         self.resp.send((Box::new(i), wssender.clone())).unwrap();
@@ -62,12 +73,12 @@ impl LogicWorker {
                         }
                         Content::Close => {
                             println!("\n\n\n +++++++++++++++++ close  ++++++++++++++++++++ \n \n \n ");
-                            j.remove_player(msg.meta.name.clone());
+                            game.game.remove_player(msg.meta.name.clone());
                             self.clients.remove(&msg.meta.name);
                         }  
                         Content::Start(wssock) => {
                             println!("\n\n\n +++++++++++++++++ client  ++++++++++++++++++++ \n \n \n ");
-                            j.add_player(msg.meta.name.clone());
+                            game.game.add_player(msg.meta.name.clone());
                             self.clients.insert(msg.meta.name, wssock);
                             
                         }
