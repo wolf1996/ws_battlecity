@@ -9,6 +9,7 @@ use std::thread;
 use std::sync::mpsc::channel;
 use std::time;
 use app::logic;
+use std::rc::Rc;
 
 struct ChannelWrapper {
     log :game_logic::Logic,
@@ -31,16 +32,24 @@ pub struct MessageContainer {
 }
 
 struct GameContainer{
-    pub channel :Receiver<MessageContainer>,
-    pub game : game_logic::Game,
-    pub users : Vec<String>,
+    pub channel : Receiver<MessageContainer>,
+    pub resp    : Rc<Sender<(Box<Responce>, WsSender)>>,
+    pub game    : game_logic::Game,
+    pub users   : HashMap<String, WsSender>,
+}
+
+impl GameContainer {
+    pub fn broadcast(&self, mut rsp :Box<Responce>) {
+        for (_, j) in &self.users{
+            self.resp.send((Box::clone(&mut rsp), j.clone())).unwrap();
+        };
+    }
 }
 
 struct LogicWorker {
     rec : Receiver<Receiver<MessageContainer>>,
     games : Vec<GameContainer>,
-    resp : Sender<(Box<Responce>, WsSender)>,
-    clients: HashMap<String, WsSender>,
+    resp : Rc<Sender<(Box<Responce>, WsSender)>>,
 }
 
 impl LogicWorker {
@@ -49,23 +58,23 @@ impl LogicWorker {
             for ll in self.rec.try_iter(){
                 let cont = GameContainer{
                     channel :ll,
+                    resp    :self.resp.clone(),
                     game    :game_logic::Game::new(),
-                    users   :Vec::new(),
+                    users   :HashMap::new(),
                 };
                 self.games.push(cont);
                 println!("\n\n\n +++++++++++++++++ New room  ++++++++++++++++++++ \n \n \n ");
             };
             
             for ref mut game in &mut self.games{
-                for msg in game.channel.try_iter(){
+                for mut msg in &mut game.channel.try_iter(){
                     match msg.message{
                         Content::Message(mg) => {
-                            let wssender = self.clients.get(&msg.meta.name).unwrap();
                             let mcnt = game_logic::MessageContainer{msg: mg, meta : game_logic::Meta{user_name:msg.meta.name.clone()}};
                             match game.game.process_message(mcnt){
                                 Ok(some) =>  {
                                     for i in some.resp{
-                                        self.resp.send((Box::new(i), wssender.clone())).unwrap();
+                                        game.broadcast(Box::new(i));
                                     };
                                 },
                                 Err(some) => println!(" Some error in logic process {:?}", some),
@@ -73,14 +82,12 @@ impl LogicWorker {
                         }
                         Content::Close => {
                             println!("\n\n\n +++++++++++++++++ close  ++++++++++++++++++++ \n \n \n ");
-                            game.game.remove_player(msg.meta.name.clone());
-                            self.clients.remove(&msg.meta.name);
+                            game.users.remove(&msg.meta.name);
                         }  
                         Content::Start(wssock) => {
                             println!("\n\n\n +++++++++++++++++ client  ++++++++++++++++++++ \n \n \n ");
+                            game.users.insert(msg.meta.name.clone(), wssock);
                             game.game.add_player(msg.meta.name.clone());
-                            self.clients.insert(msg.meta.name, wssock);
-                            
                         }
                     };
                 };
@@ -94,7 +101,7 @@ impl LogicWorker {
 pub fn start(resp : Sender<(Box<Responce>, WsSender)>) -> Sender<Receiver<logic::MessageContainer>>{
     let (sender, reciever) = channel();
     thread::spawn(move ||{
-        let mut lw = LogicWorker{rec: reciever, games: Vec::new(), resp: resp, clients: HashMap::new()};
+        let mut lw = LogicWorker{rec: reciever, games: Vec::new(), resp: Rc::new(resp)};
         lw.worker();
     });
     return sender;

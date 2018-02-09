@@ -115,7 +115,7 @@ impl Game {
         }
         let key = RefCell::borrow_mut(&mut self.logic.system).produceKey().clone();
         let mut us = User::new(key,Rc::clone(&mut self.logic.system));
-        us.spawn_tank(); // TODO: этого тут быть не должно
+        // us.spawn_tank();
         self.users.insert(user, Rc::new(RefCell::new(us)));
         return Ok(());
     }
