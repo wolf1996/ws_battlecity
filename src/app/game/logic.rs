@@ -7,6 +7,7 @@ use app::game::errors::{GameLogicError, LogicResult};
 use app::game::events;
 use std::cell::RefCell;
 use std::rc::Rc;
+use app::game::events::SYSTEM;
 
 const MAX_PLAYERS : usize = 1;
 
@@ -27,16 +28,12 @@ pub struct Message {
     pub cmd: Commands,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ResponceContainer {
-    pub meta :Meta,
-    pub resp :Vec<Responce>,
-}
+pub type  EventsList = Vec<EventContainer>;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Responce {
+pub struct EventContainer {
     pub unit: usize,
-    pub evs : Events,
+    pub evs : Vec<Events>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -78,11 +75,15 @@ pub enum Events {
         dir :Direction,
     },
     Spawned(Unit),
+    UserConnected{
+        user_name: String,
+    },
+    Error (String),
 }
 
 pub trait GameObject {
-    fn process (&mut self, msg :Events) ->  LogicResult<Events>;
-    fn tick (&mut self) ->  LogicResult<Events>;
+    fn process (&mut self, msg :EventContainer) ->  LogicResult<EventContainer>;
+    fn tick (&mut self) ->  LogicResult<EventContainer>;
     fn key(&self) -> usize;
 }
 
@@ -96,49 +97,37 @@ pub struct Logic {
 }
 
 impl Game {
-    pub fn process_message(&mut self, msg :MessageContainer) -> LogicResult<ResponceContainer>{
+    pub fn process_message(&mut self, msg :MessageContainer) -> LogicResult<EventsList>{
         let mut system =  RefCell::borrow_mut(&mut self.logic.system);
-        let evs = match system.pass_direct(msg.msg.unit ,Events::Command(msg.clone())){
+        let evc = EventContainer{
+            unit: SYSTEM,
+            evs: vec![Events::Command(msg.clone())],
+        };
+        let evs = match system.pass_direct(msg.msg.unit ,evc){
             Ok(some) => some,
             Err(er) => return Err(er),
         };
-        let events = evs.into_iter().map(|i|{
-            let (id, ev) = i;
-            Responce{unit: id, evs:ev } 
-        }).collect();
-        Ok(ResponceContainer{meta: msg.meta, resp: events})
+        Ok(evs)
     }
 
-    pub fn add_player(&mut self, user :String) -> LogicResult<()>{
+    pub fn add_player(&mut self, user :String) -> LogicResult<EventsList>{
         if self.users.len() >= MAX_PLAYERS {
-            return Err(GameLogicError{info: "lobby is full".to_string()});
+            return Ok(vec![EventContainer{unit: 0, evs: vec![Events::Error("lobbi is full".to_owned())]}] as EventsList);
         }
         let key = RefCell::borrow_mut(&mut self.logic.system).produceKey().clone();
         let mut us = User::new(key,Rc::clone(&mut self.logic.system));
         us.spawn_tank();
-        self.users.insert(user, Rc::new(RefCell::new(us)));
-        return Ok(());
+        self.users.insert(user.clone(), Rc::new(RefCell::new(us)));
+        return Ok(vec![EventContainer{unit: SYSTEM, evs: vec![Events::UserConnected{user_name: user}]}] as EventsList);
     }
 
-    pub fn remove_player(&mut self, user :String) -> LogicResult<()>{
-        if self.users.len() == 0 {
-            return Err(GameLogicError{info: "lobby is full".to_string()});
-        }
-        self.users.remove(&user);
-        Ok(())
-    }
-
-    pub fn tick(&mut self) ->  LogicResult<ResponceContainer>{
+    pub fn tick(&mut self) ->  LogicResult<EventsList>{
         let mut system =  RefCell::borrow_mut(&mut self.logic.system);
         let evs = match system.tick(){
             Ok(some) => some,
             Err(er) => return Err(er),
         };
-        let events = evs.into_iter().map(|i|{
-            let (id, ev) = i;
-            Responce{unit: id, evs:ev } 
-        }).collect();
-        Ok(ResponceContainer{meta: Meta{user_name: "".to_owned()}, resp: events})
+        Ok(evs)
     }
 
     pub fn new() -> Game{

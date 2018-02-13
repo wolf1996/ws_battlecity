@@ -2,41 +2,75 @@ use app::game::errors;
 use app::game::logic::{Position, GameObject, MessageContainer, Events};
 use std::rc::Rc;
 use app::game::events;
+use app::game::logic::Direction;
+use app::game::logic::EventContainer;
+
+#[derive(Debug)]
+enum Status {
+    Moving{
+        dir: Direction,
+        delta : usize,
+    },
+    Standing{
+        dir: Direction,
+    },
+}
 
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Tank {
     pos :Position,
-    key :usize,
+    id :usize,
     owner :usize,
 }
 
 impl Tank {
-    fn process_message_container (&mut self, msg :MessageContainer) ->  errors::LogicResult<Events>{
+    fn process_message_container (&mut self, msg :MessageContainer) ->  errors::LogicResult<Vec<Events>>{
         println!("message processed {:?}", msg);
         self.pos.x += 1.0;
-        Ok(Events::ChangePosition{pos: self.pos.clone()})
+        Ok(vec![Events::ChangePosition{pos: self.pos.clone()},],)
     }
 
-    pub fn new(key: usize, owner: usize) -> Tank{
-        Tank{pos: Position{x: 0.0, y:0.0}, key: key, owner: owner}
+    // fn moving_command_process(&mut self, msg :MessageContainer) -> errors::LogicResult<Events>{
+    // }
+
+    pub fn new(id: usize, owner: usize) -> Tank{
+        Tank{pos: Position{x: 0.0, y:0.0}, id: id, owner: owner}
     }
 }
 
 impl GameObject for Tank {
-    fn process(&mut self, msg : Events) ->  errors::LogicResult<Events>{
-        match msg {
-            Events::Command(sm) => return self.process_message_container(sm),
-            _ => unimplemented!(),
-        }
+    fn process(&mut self, msg : EventContainer) ->  errors::LogicResult<EventContainer>{
+        let mut evs = Vec::new();
+        for i in  msg.evs {
+            match i {
+                Events::Command(sm) => {
+                    match self.process_message_container(sm){
+                        Ok(res) => {
+                            evs = [&evs[..], &res[..]].concat();
+                        },
+                        Err(err) => return Err(err),
+                    };
+                },
+                _ => unimplemented!(),
+            };
+        };
+        let mut ev = EventContainer{
+            unit: self.id.clone(),
+            evs : evs,
+        };
+        Ok(ev)
     }
     
-    fn tick(&mut self) -> errors::LogicResult<Events>{
+    fn tick(&mut self) -> errors::LogicResult<EventContainer>{
         println!("tick processed");
-        Ok(Events::ChangePosition{pos: Position{x: 0., y: 0.}})
+        Ok(EventContainer{
+            unit: self.id.clone(),
+            evs : vec![Events::ChangePosition{pos: Position{x: 0., y: 0.}},]
+        })
     }
 
     fn key(&self) -> usize {
-        self.key.clone()
+        self.id.clone()
     }
 }

@@ -2,7 +2,7 @@ extern crate ws;
 
 use self::ws::Sender as WsSender;
 use app::game::logic as game_logic;
-use app::game::logic::Responce;
+use app::game::logic::{EventContainer, Game};
 use std::sync::mpsc::{Sender, Receiver};
 use std::collections::HashMap;
 use std::thread;
@@ -33,13 +33,13 @@ pub struct MessageContainer {
 
 struct GameContainer{
     pub channel : Receiver<MessageContainer>,
-    pub resp    : Rc<Sender<(Box<Responce>, WsSender)>>,
-    pub game    : game_logic::Game,
+    pub resp    : Rc<Sender<(Box<EventContainer>, WsSender)>>,
+    pub game    : Game,
     pub users   : HashMap<String, WsSender>,
 }
 
 impl GameContainer {
-    pub fn broadcast(&self, mut rsp :Box<Responce>) {
+    pub fn broadcast(&self, mut rsp :Box<EventContainer>) {
         for (_, j) in &self.users{
             self.resp.send((Box::clone(&mut rsp), j.clone())).unwrap();
         };
@@ -49,7 +49,7 @@ impl GameContainer {
 struct LogicWorker {
     rec : Receiver<Receiver<MessageContainer>>,
     games : Vec<GameContainer>,
-    resp : Rc<Sender<(Box<Responce>, WsSender)>>,
+    resp : Rc<Sender<(Box<EventContainer>, WsSender)>>,
 }
 
 impl LogicWorker {
@@ -73,7 +73,7 @@ impl LogicWorker {
                             let mcnt = game_logic::MessageContainer{msg: mg, meta : game_logic::Meta{user_name:msg.meta.name.clone()}};
                             match game.game.process_message(mcnt){
                                 Ok(some) =>  {
-                                    for i in some.resp{
+                                    for i in some{
                                         game.broadcast(Box::new(i));
                                     };
                                 },
@@ -95,7 +95,7 @@ impl LogicWorker {
             for ref mut game in &mut self.games{
                 match game.game.tick(){
                     Ok(some) =>  {
-                        for i in some.resp{
+                        for i in some{
                             game.broadcast(Box::new(i));
                         };
                     },
@@ -108,7 +108,7 @@ impl LogicWorker {
     }
 }
 
-pub fn start(resp : Sender<(Box<Responce>, WsSender)>) -> Sender<Receiver<logic::MessageContainer>>{
+pub fn start(resp : Sender<(Box<EventContainer>, WsSender)>) -> Sender<Receiver<logic::MessageContainer>>{
     let (sender, reciever) = channel();
     thread::spawn(move ||{
         let mut lw = LogicWorker{rec: reciever, games: Vec::new(), resp: Rc::new(resp)};

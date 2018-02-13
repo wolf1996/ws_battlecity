@@ -11,6 +11,7 @@ use app::game::logic::GameObject;
 use std::borrow::Borrow;
 use app::game::events::Broker;
 use std::cell::RefCell;
+use app::game::logic::EventContainer;
 
 #[derive(Debug)]
 enum State {
@@ -41,15 +42,18 @@ impl User {
 }
 
 impl GameObject for User {
-    fn process(&mut self, msg : Events) ->  errors::LogicResult<Events>{
+    fn process(&mut self, msg : EventContainer) ->  errors::LogicResult<EventContainer>{
         match msg {
             _ => unimplemented!(),
         }
     }
     
-    fn tick(&mut self) -> errors::LogicResult<Events>{
+    fn tick(&mut self) -> errors::LogicResult<EventContainer>{
         println!("tick processed");
-        Ok(logic::Events::ChangePosition{pos: Position{x: 0., y: 0.}})
+        Ok(EventContainer{
+            unit: self.id.clone(),
+            evs : vec![logic::Events::ChangePosition{pos: Position{x: 0., y: 0.}},]
+        })
     }
 
     fn key(&self) -> usize {
