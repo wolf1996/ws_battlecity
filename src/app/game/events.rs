@@ -19,8 +19,8 @@ impl Broker {
 
     pub fn tick(&mut self)-> errors::LogicResult<EventsList> {
         let mut events = Vec::new();
-        for (ref unit, ref gobj) in &mut self.units.iter_mut() {
-            let evs = gobj.borrow_mut().tick();
+        for (unit, gobj) in self.units.clone().iter() {
+            let evs = gobj.borrow_mut().tick(self);
             match evs {
                 Ok(some) => events.push(some),
                 Err(some) => return Err(some),
@@ -31,11 +31,11 @@ impl Broker {
 
     pub fn pass_direct(&mut self, key: usize, evnt: EventContainer) -> errors::LogicResult<EventsList> {
         let mut unit = match self.units.get_mut(&key){
-            Some(some) => some,
+            Some(some) => some.clone(),
             None => return Err(errors::GameLogicError{info:"No such unit".to_string()}),
         };
-        let mut un = RefCell::borrow_mut(unit);
-        let rsp = match un.process(evnt) {
+        let mut un = RefCell::borrow_mut(&mut unit);
+        let rsp = match un.process(self, evnt) {
             Ok(expr) => expr,
             Err(err) => return Err(err),
         };
@@ -67,12 +67,12 @@ impl Broker {
             let evnt = events.get(ind).unwrap().clone();
             ind += 1;
             let mut subs = match self.channels.get_mut(&evnt.unit.clone()){
-                Some(some) => some,
+                Some(some) => some.clone(),
                 None => return Err(errors::GameLogicError{info:"No such channel".to_string()}),
             };
             for i in &mut subs.iter_mut(){
                 let mut gobj = RefCell::borrow_mut(i); 
-                match gobj.process(evnt.clone()){
+                match gobj.process(self, evnt.clone()){
                     Ok(evs) =>{
                         events.push(evs);
                     },
@@ -88,7 +88,7 @@ impl Broker {
         return brok;
     }
     
-    pub fn produceKey(&mut self) -> usize {
+    pub fn produce_key(&mut self) -> usize {
         self.counter += 1;
         self.counter.clone()
     }

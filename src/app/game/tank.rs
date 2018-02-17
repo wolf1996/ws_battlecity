@@ -40,7 +40,7 @@ impl Tank {
 }
 
 impl GameObject for Tank {
-    fn process(&mut self, msg : EventContainer) ->  errors::LogicResult<EventContainer>{
+    fn process(&mut self,brok: &mut events::Broker, msg : EventContainer) ->  errors::LogicResult<EventContainer>{
         let mut evs = Vec::new();
         for i in  msg.evs {
             match i {
@@ -62,7 +62,7 @@ impl GameObject for Tank {
         Ok(ev)
     }
     
-    fn tick(&mut self) -> errors::LogicResult<EventContainer>{
+    fn tick(&mut self, brok: &mut events::Broker) -> errors::LogicResult<EventContainer>{
         println!("tick processed");
         Ok(EventContainer{
             unit: self.id.clone(),

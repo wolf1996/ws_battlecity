@@ -44,6 +44,40 @@ impl GameContainer {
             self.resp.send((Box::clone(&mut rsp), j.clone())).unwrap();
         };
     }
+
+    pub fn process(&mut self){
+        for mut msg in &mut self.channel.try_iter(){
+            match msg.message{
+                Content::Message(mg) => {
+                    let mcnt = game_logic::MessageContainer{msg: mg, meta : game_logic::Meta{user_name:msg.meta.name.clone()}};
+                    match self.game.process_message(mcnt){
+                        Ok(some) =>  {
+                            for i in some{
+                                self.broadcast(Box::new(i));
+                            };
+                        },
+                        Err(some) => println!(" Some error in logic process {:?}", some),
+                    };
+                }
+                Content::Close => {
+                    println!("\n\n\n +++++++++++++++++ close  ++++++++++++++++++++ \n \n \n ");
+                    self.users.remove(&msg.meta.name.clone());
+                }  
+                Content::Start(wssock) => {
+                    println!("\n\n\n +++++++++++++++++ client  ++++++++++++++++++++ \n \n \n ");
+                    self.users.insert(msg.meta.name.clone(), wssock);
+                    match self.game.add_player(msg.meta.name.clone()){
+                        Ok(some) =>  {
+                            for i in some{
+                                self.broadcast(Box::new(i));
+                            };
+                        },
+                        Err(some) => println!(" Some error in logic process {:?}", some),
+                    };
+                }
+            };
+        };
+    }
 }
 
 struct LogicWorker {
@@ -67,30 +101,7 @@ impl LogicWorker {
             };
             
             for ref mut game in &mut self.games{
-                for mut msg in &mut game.channel.try_iter(){
-                    match msg.message{
-                        Content::Message(mg) => {
-                            let mcnt = game_logic::MessageContainer{msg: mg, meta : game_logic::Meta{user_name:msg.meta.name.clone()}};
-                            match game.game.process_message(mcnt){
-                                Ok(some) =>  {
-                                    for i in some{
-                                        game.broadcast(Box::new(i));
-                                    };
-                                },
-                                Err(some) => println!(" Some error in logic process {:?}", some),
-                            };
-                        }
-                        Content::Close => {
-                            println!("\n\n\n +++++++++++++++++ close  ++++++++++++++++++++ \n \n \n ");
-                            game.users.remove(&msg.meta.name);
-                        }  
-                        Content::Start(wssock) => {
-                            println!("\n\n\n +++++++++++++++++ client  ++++++++++++++++++++ \n \n \n ");
-                            game.users.insert(msg.meta.name.clone(), wssock);
-                            game.game.add_player(msg.meta.name.clone());
-                        }
-                    };
-                };
+                game.process();
             };
             for ref mut game in &mut self.games{
                 match game.game.tick(){

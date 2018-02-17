@@ -9,7 +9,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use app::game::events::SYSTEM;
 
-const MAX_PLAYERS : usize = 1;
+const NUM_PLAYERS : usize = 1;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Meta {
@@ -30,6 +30,7 @@ pub struct Message {
 
 pub type  EventsList = Vec<EventContainer>;
 
+// Вговнокодим. Но надо бы добавить человеческий роутинг
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EventContainer {
     pub unit: usize,
@@ -82,8 +83,8 @@ pub enum Events {
 }
 
 pub trait GameObject {
-    fn process (&mut self, msg :EventContainer) ->  LogicResult<EventContainer>;
-    fn tick (&mut self) ->  LogicResult<EventContainer>;
+    fn process (&mut self, brok: &mut events::Broker, msg :EventContainer) ->  LogicResult<EventContainer>;
+    fn tick (&mut self, brok: &mut events::Broker) ->  LogicResult<EventContainer>;
     fn key(&self) -> usize;
 }
 
@@ -97,13 +98,16 @@ pub struct Logic {
 }
 
 impl Game {
+    //TODO: State machin бы, но очень долго делать.
     pub fn process_message(&mut self, msg :MessageContainer) -> LogicResult<EventsList>{
-        let mut system =  RefCell::borrow_mut(&mut self.logic.system);
+        if !self.users.len() < NUM_PLAYERS {
+            return Ok(vec![EventContainer{unit: 0,  evs: vec![Events::Error("not enouth players".to_owned())]}] as EventsList);
+        }
         let evc = EventContainer{
             unit: SYSTEM,
             evs: vec![Events::Command(msg.clone())],
         };
-        let evs = match system.pass_direct(msg.msg.unit ,evc){
+        let evs = match self.logic.system.borrow_mut().pass_direct(msg.msg.unit ,evc){
             Ok(some) => some,
             Err(er) => return Err(er),
         };
@@ -111,13 +115,14 @@ impl Game {
     }
 
     pub fn add_player(&mut self, user :String) -> LogicResult<EventsList>{
-        if self.users.len() >= MAX_PLAYERS {
+        if self.users.len() >= NUM_PLAYERS {
             return Ok(vec![EventContainer{unit: 0, evs: vec![Events::Error("lobbi is full".to_owned())]}] as EventsList);
         }
-        let key = RefCell::borrow_mut(&mut self.logic.system).produceKey().clone();
-        let mut us = User::new(key,Rc::clone(&mut self.logic.system));
-        us.spawn_tank();
-        self.users.insert(user.clone(), Rc::new(RefCell::new(us)));
+        let key = RefCell::borrow_mut(&mut self.logic.system).produce_key().clone();
+        let mut us = User::new(key);
+        let refu = Rc::new(RefCell::new(us));
+        self.users.insert(user.clone(), refu.clone());
+        RefCell::borrow_mut(&mut self.logic.system).add_system(refu.clone());
         return Ok(vec![EventContainer{unit: SYSTEM, evs: vec![Events::UserConnected{user_name: user}]}] as EventsList);
     }
 

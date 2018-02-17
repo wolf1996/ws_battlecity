@@ -13,46 +13,47 @@ use app::game::events::Broker;
 use std::cell::RefCell;
 use app::game::logic::EventContainer;
 
-#[derive(Debug)]
-enum State {
-    Created,
-    Finished,
-    Alive,
-}
-
 pub struct User {
-    id: usize,
-    healpoints: i8,
-    system    : Rc<RefCell<Broker>>,
+    id         : usize,
+    healpoints : i8,
+    units      : Vec<Rc<RefCell<GameObject>>>,
 }
 
 impl User {
-    pub fn new(id: usize, system: Rc<RefCell<Broker>>) -> User{
-        User{id: id, healpoints: 3, system: system}
+    pub fn new(id: usize) -> User{
+        User{id: id, healpoints: 3, units: Vec::new()}
     }
 
-    pub fn spawn_tank(&mut self) -> errors::LogicResult<logic::Events>{
-        let mut stm = self.system.borrow_mut();
-        let key = stm.produceKey();
-        let tank = tank::Tank::new(key, self.id.clone());
-        stm.add_system(Rc::new(RefCell::new(tank.clone())));
-        stm.subscribe(tank.key(), self.id.clone());
-        Ok(logic::Events::Spawned(logic::Unit::Tank(tank)))
+    pub fn spawn_tank(&mut self, stm: &mut events::Broker) -> errors::LogicResult<logic::Events>{
+        let key = stm.produce_key();
+        let tankref = Rc::new(RefCell::new(tank::Tank::new(key, self.id.clone())));
+        self.units.push(tankref.clone());
+        stm.add_system(tankref.clone());
+        stm.subscribe((*tankref).borrow().key(), self.id.clone());
+        let tkcopy = (*tankref).borrow().clone();
+        Ok(logic::Events::Spawned(logic::Unit::Tank(tkcopy)))
     }
 }
 
 impl GameObject for User {
-    fn process(&mut self, msg : EventContainer) ->  errors::LogicResult<EventContainer>{
+    fn process(&mut self, brok: &mut events::Broker, msg : EventContainer) ->  errors::LogicResult<EventContainer>{
         match msg {
             _ => unimplemented!(),
         }
     }
     
-    fn tick(&mut self) -> errors::LogicResult<EventContainer>{
+    fn tick(&mut self, brok: &mut events::Broker) -> errors::LogicResult<EventContainer>{
         println!("tick processed");
+        if self.units.len() < 1 {
+            let ev = self.spawn_tank(brok)?;
+            return Ok(EventContainer{
+                unit: self.id.clone(),
+                evs : vec![ev,]
+            });
+        }
         Ok(EventContainer{
             unit: self.id.clone(),
-            evs : vec![logic::Events::ChangePosition{pos: Position{x: 0., y: 0.}},]
+            evs : vec![logic::Events::ChangePosition{pos: Position{x: 100., y: 100.}},]
         })
     }
 
