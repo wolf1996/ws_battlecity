@@ -1,41 +1,76 @@
 use app::game::errors;
-use app::game::logic::{Position, GameObject, MessageContainer, Events};
+use app::game::logic::{Position, GameObject, MessageContainer, Events, Commands};
 use std::rc::Rc;
 use app::game::events;
 use app::game::logic::Direction;
 use app::game::logic::EventContainer;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 enum Status {
     Moving{
-        dir: Direction,
         delta : usize,
     },
-    Standing{
-        dir: Direction,
-    },
+    Standing,
 }
 
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Tank {
     pos :Position,
+    dir :Direction,
     id :usize,
     owner :usize,
+    state: Status,
 }
 
 impl Tank {
     fn process_message_container (&mut self, msg :MessageContainer) ->  errors::LogicResult<Vec<Events>>{
-        println!("message processed {:?}", msg);
-        self.pos.x += 1.0;
-        Ok(vec![Events::ChangePosition{pos: self.pos.clone()},],)
+        match msg.msg.cmd {
+            Commands::Move{direction:dir} =>{
+                return self.moving_command_process(dir);
+            },
+            Commands::ChangeDirection{newdir: dir} => {
+                return self.change_direction_command_process(dir);
+            },
+            _ => return Ok(vec![Events::Error{err: "invalid command".to_owned(), user: msg.meta.user_name.clone()},])
+        }
+        Ok(vec![Events::ChangePosition{pos: self.pos.clone(), dir:self.dir.clone() },],)
     }
 
-    // fn moving_command_process(&mut self, msg :MessageContainer) -> errors::LogicResult<Events>{
-    // }
+    fn change_direction_command_process(&mut self, dir: Direction) -> errors::LogicResult<Vec<Events>>{
+        self.state = Status::Standing;
+        self.dir = dir;
+        return Ok(vec![Events::ChangePosition{pos: self.pos.clone(), dir: self.dir.clone()},],); 
+    }
+
+    fn moving_command_process(&mut self, dir: Direction) -> errors::LogicResult<Vec<Events>>{
+        self.state = Status::Moving{
+            delta: 1,
+        };
+        self.dir = dir;
+        return Ok(vec![Events::ChangePosition{pos: self.pos.clone(), dir: self.dir.clone()},],); 
+    }
+
+    fn moving_tick(&mut self, del: usize) -> errors::LogicResult<Vec<Events>>{
+        match self.dir {
+            Direction::Down => {
+                self.pos.y -= 1.;
+            },
+            Direction::Left => {
+                self.pos.x -= 1.;
+            },
+            Direction::Up => {
+                self.pos.y += 1.;
+            },
+            Direction::Right => {
+                self.pos.x += 1.;
+            },
+        }
+        return Ok(vec![Events::ChangePosition{pos: self.pos.clone(), dir: self.dir.clone()},],); 
+    }
 
     pub fn new(id: usize, owner: usize) -> Tank{
-        Tank{pos: Position{x: 0.0, y:0.0}, id: id, owner: owner}
+        Tank{pos: Position{x: 0.0, y:0.0}, dir:Direction::Up, id: id, owner: owner, state: Status::Standing,}
     }
 }
 
@@ -63,11 +98,21 @@ impl GameObject for Tank {
     }
     
     fn tick(&mut self, brok: &mut events::Broker) -> errors::LogicResult<EventContainer>{
-        println!("tick processed");
-        Ok(EventContainer{
-            unit: self.id.clone(),
-            evs : vec![Events::ChangePosition{pos: Position{x: 0., y: 0.}},]
-        })
+        match self.state.clone() {
+            Status::Moving{ delta: delta} => {
+                let evs = self.moving_tick(delta.clone())?;
+                Ok(EventContainer{
+                    unit: self.id.clone(),
+                    evs : evs,
+                })
+            },
+            Status::Standing => {
+                Ok(EventContainer{
+                    unit: self.id.clone(),
+                    evs : vec![Events::ChangePosition{pos: self.pos.clone(), dir: self.dir.clone()},]
+                })
+            },
+        }
     }
 
     fn key(&self) -> usize {

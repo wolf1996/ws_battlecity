@@ -53,7 +53,9 @@ pub struct Position {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Commands {
-    Move,
+    Move{
+        direction :Direction,
+    },
     ChangeDirection{
         newdir :Direction,
     },
@@ -70,6 +72,7 @@ pub enum Events {
     Command(MessageContainer),
     ChangePosition {
         pos :Position,
+        dir :Direction,
     },
     Fire {
         pos :Position,
@@ -79,7 +82,7 @@ pub enum Events {
     UserConnected{
         user_name: String,
     },
-    Error (String),
+    Error {err: String, user: String},
 }
 
 pub trait GameObject {
@@ -101,7 +104,7 @@ impl Game {
     //TODO: State machin бы, но очень долго делать.
     pub fn process_message(&mut self, msg :MessageContainer) -> LogicResult<EventsList>{
         if !self.users.len() < NUM_PLAYERS {
-            return Ok(vec![EventContainer{unit: 0,  evs: vec![Events::Error("not enouth players".to_owned())]}] as EventsList);
+            return Ok(vec![EventContainer{unit: 0,  evs: vec![Events::Error{err: "not enouth players".to_owned(), user: msg.meta.user_name.clone()}]}] as EventsList);
         }
         let evc = EventContainer{
             unit: SYSTEM,
@@ -116,7 +119,7 @@ impl Game {
 
     pub fn add_player(&mut self, user :String) -> LogicResult<EventsList>{
         if self.users.len() >= NUM_PLAYERS {
-            return Ok(vec![EventContainer{unit: 0, evs: vec![Events::Error("lobbi is full".to_owned())]}] as EventsList);
+            return Ok(vec![EventContainer{unit: 0, evs: vec![Events::Error{err:"lobbi is full".to_owned(), user:user}]}] as EventsList);
         }
         let key = RefCell::borrow_mut(&mut self.logic.system).produce_key().clone();
         let mut us = User::new(key);

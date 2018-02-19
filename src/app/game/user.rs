@@ -53,7 +53,7 @@ impl GameObject for User {
         }
         Ok(EventContainer{
             unit: self.id.clone(),
-            evs : vec![logic::Events::ChangePosition{pos: Position{x: 100., y: 100.}},]
+            evs : vec![],
         })
     }
 
