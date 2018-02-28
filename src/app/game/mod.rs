@@ -1,6 +1,6 @@
-mod errors;
+pub mod errors;
 pub mod logic;
-mod tank;
-mod user;
-mod events;
-
+pub mod tank;
+pub mod user;
+pub mod events;
+pub mod map;
