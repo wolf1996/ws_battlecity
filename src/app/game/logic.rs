@@ -8,6 +8,7 @@ use app::game::events;
 use std::cell::RefCell;
 use std::rc::Rc;
 use app::game::events::SYSTEM;
+use app::game::map::GameField;
 
 const NUM_PLAYERS : usize = 1;
 
@@ -85,9 +86,11 @@ pub enum Events {
     Error {err: String, user: String},
 }
 
+
+// TODO: Было бы норм добавить контекст и пихать все брокеры и map туда
 pub trait GameObject {
-    fn process (&mut self, brok: &mut events::Broker, msg :EventContainer) ->  LogicResult<EventContainer>;
-    fn tick (&mut self, brok: &mut events::Broker) ->  LogicResult<EventContainer>;
+    fn process (&mut self, brok: &mut events::Broker,  map: &mut GameField, msg :EventContainer) ->  LogicResult<EventContainer>;
+    fn tick (&mut self, brok: &mut events::Broker,   map: &mut GameField) ->  LogicResult<EventContainer>;
     fn key(&self) -> usize;
 }
 
@@ -98,6 +101,7 @@ pub struct Game {
 
 pub struct Logic {
     pub system : Rc<RefCell<events::Broker>>,
+    pub map    : GameField,
 }
 
 impl Game {
@@ -110,7 +114,7 @@ impl Game {
             unit: SYSTEM,
             evs: vec![Events::Command(msg.clone())],
         };
-        let evs = match self.logic.system.borrow_mut().pass_direct(msg.msg.unit ,evc){
+        let evs = match self.logic.system.borrow_mut().pass_direct(msg.msg.unit ,evc, &mut self.logic.map){
             Ok(some) => some,
             Err(er) => return Err(er),
         };
@@ -131,7 +135,7 @@ impl Game {
 
     pub fn tick(&mut self) ->  LogicResult<EventsList>{
         let mut system =  RefCell::borrow_mut(&mut self.logic.system);
-        let evs = match system.tick(){
+        let evs = match system.tick(&mut self.logic.map){
             Ok(some) => some,
             Err(er) => return Err(er),
         };
@@ -139,6 +143,7 @@ impl Game {
     }
 
     pub fn new() -> Game{
-        Game{logic: Logic{system: Rc::new(RefCell::new(events::Broker::new()))}, users: HashMap::new()}
+        let map = GameField::new();
+        Game{logic: Logic{system: Rc::new(RefCell::new(events::Broker::new())), map: map}, users: HashMap::new()}
     }
 }

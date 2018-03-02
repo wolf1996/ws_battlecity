@@ -4,6 +4,7 @@ use std::rc::Rc;
 use app::game::events;
 use app::game::logic::Direction;
 use app::game::logic::EventContainer;
+use app::game::map::GameField;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 enum Status {
@@ -69,13 +70,14 @@ impl Tank {
         return Ok(vec![Events::ChangePosition{pos: self.pos.clone(), dir: self.dir.clone()},],); 
     }
 
-    pub fn new(id: usize, owner: usize) -> Tank{
+    pub fn new(id: usize, owner: usize,  map :&mut GameField,) -> Tank{
+        map.add_new(id);
         Tank{pos: Position{x: 0.0, y:0.0}, dir:Direction::Up, id: id, owner: owner, state: Status::Standing,}
     }
 }
 
 impl GameObject for Tank {
-    fn process(&mut self,brok: &mut events::Broker, msg : EventContainer) ->  errors::LogicResult<EventContainer>{
+    fn process(&mut self,brok: &mut events::Broker, map: &mut GameField, msg : EventContainer) ->  errors::LogicResult<EventContainer>{
         let mut evs = Vec::new();
         for i in  msg.evs {
             match i {
@@ -97,7 +99,7 @@ impl GameObject for Tank {
         Ok(ev)
     }
     
-    fn tick(&mut self, brok: &mut events::Broker) -> errors::LogicResult<EventContainer>{
+    fn tick(&mut self, brok: &mut events::Broker,  map: &mut GameField) -> errors::LogicResult<EventContainer>{
         match self.state.clone() {
             Status::Moving{ delta: delta} => {
                 let evs = self.moving_tick(delta.clone())?;

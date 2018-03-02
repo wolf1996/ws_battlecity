@@ -12,6 +12,7 @@ use std::borrow::Borrow;
 use app::game::events::Broker;
 use std::cell::RefCell;
 use app::game::logic::EventContainer;
+use app::game::map::GameField;
 
 pub struct User {
     id         : usize,
@@ -24,9 +25,9 @@ impl User {
         User{id: id, healpoints: 3, units: Vec::new()}
     }
 
-    pub fn spawn_tank(&mut self, stm: &mut events::Broker) -> errors::LogicResult<logic::Events>{
+    pub fn spawn_tank(&mut self, stm: &mut events::Broker,  map: &mut GameField) -> errors::LogicResult<logic::Events>{
         let key = stm.produce_key();
-        let tankref = Rc::new(RefCell::new(tank::Tank::new(key, self.id.clone())));
+        let tankref = Rc::new(RefCell::new(tank::Tank::new(key, self.id.clone(), map)));
         self.units.push(tankref.clone());
         stm.add_system(tankref.clone());
         stm.subscribe((*tankref).borrow().key(), self.id.clone());
@@ -36,16 +37,16 @@ impl User {
 }
 
 impl GameObject for User {
-    fn process(&mut self, brok: &mut events::Broker, msg : EventContainer) ->  errors::LogicResult<EventContainer>{
+    fn process(&mut self, brok: &mut events::Broker, map: &mut GameField, msg : EventContainer) ->  errors::LogicResult<EventContainer>{
         match msg {
             _ => unimplemented!(),
         }
     }
     
-    fn tick(&mut self, brok: &mut events::Broker) -> errors::LogicResult<EventContainer>{
+    fn tick(&mut self, brok: &mut events::Broker, map: &mut GameField) -> errors::LogicResult<EventContainer>{
         println!("tick processed");
         if self.units.len() < 1 {
-            let ev = self.spawn_tank(brok)?;
+            let ev = self.spawn_tank(brok, map)?;
             return Ok(EventContainer{
                 unit: self.id.clone(),
                 evs : vec![ev,]

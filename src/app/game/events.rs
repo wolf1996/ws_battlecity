@@ -6,21 +6,23 @@ use app::game::logic::EventsList;
 use app::game::logic::EventContainer;
 use std::cell::RefCell;
 use std::rc::Rc;
+use app::game::map::GameField;
 
 pub const  SYSTEM: usize = 0;
 
+// а брокер тем временем всё обрастает. Не пора ли его сливать с "системой"
 pub struct Broker {
     channels :HashMap<usize, Vec<Rc<RefCell<GameObject>>>>, 
     units    :HashMap<usize, Rc<RefCell<GameObject>>>,
     counter  :usize,
 }
-
+ 
 impl Broker {
 
-    pub fn tick(&mut self)-> errors::LogicResult<EventsList> {
+    pub fn tick(&mut self, map :&mut GameField)-> errors::LogicResult<EventsList> {
         let mut events = Vec::new();
         for (unit, gobj) in self.units.clone().iter() {
-            let evs = gobj.borrow_mut().tick(self);
+            let evs = gobj.borrow_mut().tick(self, map);
             match evs {
                 Ok(some) => events.push(some),
                 Err(some) => return Err(some),
@@ -29,13 +31,14 @@ impl Broker {
         Ok(events)
     }
 
-    pub fn pass_direct(&mut self, key: usize, evnt: EventContainer) -> errors::LogicResult<EventsList> {
+    // а вот тут вот следовало бы поправить. скорее всего не будет реакции на 
+    pub fn pass_direct(&mut self, key: usize, evnt: EventContainer, map :&mut GameField) -> errors::LogicResult<EventsList> {
         let mut unit = match self.units.get_mut(&key){
             Some(some) => some.clone(),
             None => return Err(errors::GameLogicError{info:"No such unit".to_string()}),
         };
         let mut un = RefCell::borrow_mut(&mut unit);
-        let rsp = match un.process(self, evnt) {
+        let rsp = match un.process(self, map, evnt) {
             Ok(expr) => expr,
             Err(err) => return Err(err),
         };
@@ -60,7 +63,7 @@ impl Broker {
         Ok(())
     }
 
-    pub fn pass_message(&mut self, evnt: EventContainer) -> errors::LogicResult<EventsList> {
+    pub fn pass_message(&mut self, map :&mut GameField , evnt: EventContainer) -> errors::LogicResult<EventsList> {
         let mut events = vec![ evnt,];
         let mut ind = 0;
         while events.len() < ind {
@@ -72,7 +75,7 @@ impl Broker {
             };
             for i in &mut subs.iter_mut(){
                 let mut gobj = RefCell::borrow_mut(i); 
-                match gobj.process(self, evnt.clone()){
+                match gobj.process(self, map, evnt.clone()){
                     Ok(evs) =>{
                         events.push(evs);
                     },
