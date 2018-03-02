@@ -26,23 +26,23 @@ impl GameField {
         };
     }
 
-    pub fn move_unit(&mut self, brok :&mut Broker, ind: usize, dir: Direction, d :f32) -> errors::LogicResult<Vec<Events>> {
+    pub fn move_unit(&mut self, brok :&mut Broker, ind: usize, dir: Direction, d :usize) -> errors::LogicResult<Vec<Events>> {
         let unit = match self.maps.get_mut(&ind){
             Some(expr) => expr,
             None => return Err(errors::GameLogicError{info: "Object is not on map".to_owned()}),
         };
         match dir {
             Direction::Down => {
-                unit.y -= d;
+                unit.y -= d as f32;
             },
             Direction::Left => {
-                unit.x -= d;
+                unit.x -= d as f32;
             },
             Direction::Up => {
-                unit.y += d;
+                unit.y += d as f32;
             },
             Direction::Right => {
-                unit.x += d;
+                unit.x += d as f32;
             },
         }
         return Ok(vec![Events::ChangePosition{pos: unit.clone(), dir: dir.clone()},],); 

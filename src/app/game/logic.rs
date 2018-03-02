@@ -75,6 +75,9 @@ pub enum Events {
         pos :Position,
         dir :Direction,
     },
+    ChangeDirection {
+        dir :Direction,
+    },
     Fire {
         pos :Position,
         dir :Direction,
