@@ -24,7 +24,7 @@ impl Broker {
         for (unit, gobj) in self.units.clone().iter() {
             let evs = gobj.borrow_mut().tick(self, map);
             match evs {
-                Ok(some) => events.push(some),
+                Ok(some) => events.append(&mut some.clone()),
                 Err(some) => return Err(some),
             }
         }
@@ -42,7 +42,7 @@ impl Broker {
             Ok(expr) => expr,
             Err(err) => return Err(err),
         };
-        Ok(vec![rsp, ])
+        Ok(rsp)
     }
 
     // TODO: Реаллизовать паттерн комманда и enum-ами передавать нужные параметры для спауна объекта внутри
@@ -77,7 +77,7 @@ impl Broker {
                 let mut gobj = RefCell::borrow_mut(i); 
                 match gobj.process(self, map, evnt.clone()){
                     Ok(evs) =>{
-                        events.push(evs);
+                        events.append(&mut evs.clone());
                     },
                     Err(err) => return Err(err)
                 }

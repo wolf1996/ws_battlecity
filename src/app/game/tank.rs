@@ -3,7 +3,7 @@ use app::game::logic::{Position, GameObject, MessageContainer, Events, Commands}
 use std::rc::Rc;
 use app::game::events;
 use app::game::logic::Direction;
-use app::game::logic::EventContainer;
+use app::game::logic::{EventContainer, EventsList};
 use app::game::map::GameField;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -62,42 +62,46 @@ impl Tank {
 }
 
 impl GameObject for Tank {
-    fn process(&mut self,brok: &mut events::Broker, map: &mut GameField, msg : EventContainer) ->  errors::LogicResult<EventContainer>{
+    fn process(&mut self,brok: &mut events::Broker, map: &mut GameField, msg : EventContainer) ->  errors::LogicResult<EventsList>{
         let mut evs = Vec::new();
-        for i in  msg.evs {
-            match i {
-                Events::Command(sm) => {
-                    match self.process_message_container(brok, map, sm){
-                        Ok(res) => {
-                            evs = [&evs[..], &res[..]].concat();
-                        },
-                        Err(err) => return Err(err),
-                    };
-                },
-                _ => unimplemented!(),
+        match msg.evs {
+            Events::Command(sm) => {
+                match self.process_message_container(brok, map, sm){
+                    Ok(res) => {
+                        evs = [&evs[..], &res[..]].concat();
+                    },
+                    Err(err) => return Err(err),
+                };
+            },
+            _ => unimplemented!(),
+        };
+        let mut res = Vec::new();
+        for i in evs {
+            let mut ev = EventContainer{
+                unit: self.id.clone(),
+                evs : i,
             };
+            res.push(ev)
         };
-        let mut ev = EventContainer{
-            unit: self.id.clone(),
-            evs : evs,
-        };
-        Ok(ev)
+        Ok(res)
     }
     
-    fn tick(&mut self, brok: &mut events::Broker,  map: &mut GameField) -> errors::LogicResult<EventContainer>{
+    fn tick(&mut self, brok: &mut events::Broker,  map: &mut GameField) -> errors::LogicResult<EventsList>{
         match self.state.clone() {
             Status::Moving{ delta: delta} => {
                 let evs = self.moving_tick(brok, map, delta.clone())?;
-                Ok(EventContainer{
-                    unit: self.id.clone(),
-                    evs : evs,
-                })
+                let mut res = Vec::new();
+                for i in evs {
+                    let ip = EventContainer{
+                        unit: self.id.clone(),
+                        evs : i,
+                    };
+                    res.push(ip);
+                }
+                Ok(res)
             },
             Status::Standing => {
-                Ok(EventContainer{
-                    unit: self.id.clone(),
-                    evs : vec![]
-                })
+                Ok(vec![])
             },
         }
     }

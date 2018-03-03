@@ -11,7 +11,7 @@ use app::game::logic::GameObject;
 use std::borrow::Borrow;
 use app::game::events::Broker;
 use std::cell::RefCell;
-use app::game::logic::EventContainer;
+use app::game::logic::{EventContainer, EventsList};
 use app::game::map::GameField;
 
 pub struct User {
@@ -37,25 +37,22 @@ impl User {
 }
 
 impl GameObject for User {
-    fn process(&mut self, brok: &mut events::Broker, map: &mut GameField, msg : EventContainer) ->  errors::LogicResult<EventContainer>{
+    fn process(&mut self, brok: &mut events::Broker, map: &mut GameField, msg : EventContainer) ->  errors::LogicResult<EventsList>{
         match msg {
             _ => unimplemented!(),
         }
     }
     
-    fn tick(&mut self, brok: &mut events::Broker, map: &mut GameField) -> errors::LogicResult<EventContainer>{
+    fn tick(&mut self, brok: &mut events::Broker, map: &mut GameField) -> errors::LogicResult<EventsList>{
         println!("tick processed");
         if self.units.len() < 1 {
             let ev = self.spawn_tank(brok, map)?;
-            return Ok(EventContainer{
+            return Ok(vec![EventContainer{
                 unit: self.id.clone(),
-                evs : vec![ev,]
-            });
+                evs : ev,
+            }]);
         }
-        Ok(EventContainer{
-            unit: self.id.clone(),
-            evs : vec![],
-        })
+        Ok(vec![])
     }
 
     fn key(&self) -> usize {
