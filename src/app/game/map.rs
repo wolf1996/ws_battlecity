@@ -3,15 +3,20 @@ use app::game::logic::{Position, Direction, Events};
 use app::game::errors;
 use app::game::events::Broker;
 
+
 #[derive(Debug)]
 pub struct GameField {
-    maps: HashMap<usize,Position>
+    maps: HashMap<usize,Position>,
+    map_dim:  u32,
+    cell_dim: u32,
 }
 
 impl GameField {
     pub fn new() -> Self {
         GameField{
             maps: HashMap::new(),
+            map_dim: 500,
+            cell_dim: 10,
         }
     }
 
@@ -26,9 +31,51 @@ impl GameField {
         };
     }
 
+    fn calc_collision(&self, pos1 :&Position,  pos2 :&Position) -> (f32, f32) {
+        let xcoll = (pos1.x - pos2.x).abs() - (self.cell_dim as f32);
+        let ycoll = (pos1.y - pos2.y).abs() - (self.cell_dim as f32);
+        return (xcoll, ycoll);
+    }
+
+    fn check_collisions(&mut self, moved: usize, dir: Direction, new_pos: &mut Position)  -> errors::LogicResult<Vec<Events>> {
+        // TODO: оптимизируй это. Жутко прожорливый алгоритм
+        let mut  evs = Vec::new();
+        for (i, j) in self.maps.iter() {
+            if *i == moved{
+                continue;
+            }
+            let (xcoll,ycoll) = self.calc_collision(&j,new_pos); 
+            match dir{
+                Direction::Down | Direction::Up => {
+                    if (ycoll < 0.0) {
+                        match dir {
+                            Direction::Down => new_pos.y -= ycoll,
+                            Direction::Up => new_pos.y += ycoll,
+                            default => unimplemented!()
+                        }
+                        evs.push(Events::Collision{fst: moved, scd: i.clone()})
+                    }
+                },  
+                Direction::Left | Direction::Right =>{
+                    if (xcoll < 0.0) {
+                        match dir {
+                            Direction::Left => new_pos.x -= xcoll,
+                            Direction::Right => new_pos.x += xcoll,
+                            default => unimplemented!()
+                        }
+                        evs.push(Events::Collision{fst: moved, scd: i.clone()})
+                    }
+                }
+            }
+        }
+        return Ok(evs);
+    }
+
+    // Direction переделать на reference
+    // стал прыгать на 8
     pub fn move_unit(&mut self, brok :&mut Broker, ind: usize, dir: Direction, d :usize) -> errors::LogicResult<Vec<Events>> {
-        let unit = match self.maps.get_mut(&ind){
-            Some(expr) => expr,
+        let mut unit = match self.maps.get(&ind){
+            Some(expr) => expr.clone(),
             None => return Err(errors::GameLogicError{info: "Object is not on map".to_owned()}),
         };
         match dir {
@@ -45,6 +92,8 @@ impl GameField {
                 unit.x += d as f32;
             },
         }
+        self.check_collisions(ind, dir.clone(), &mut unit);
+        self.maps.insert(ind, unit.clone());
         return Ok(vec![Events::ChangePosition{pos: unit.clone(), dir: dir.clone()},],); 
     }
 }

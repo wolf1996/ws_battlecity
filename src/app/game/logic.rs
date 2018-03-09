@@ -86,6 +86,10 @@ pub enum Events {
     UserConnected{
         user_name: String,
     },
+    Collision {
+        fst :usize,
+        scd :usize,
+    },
     Error {err: String, user: String},
 }
 

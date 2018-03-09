@@ -10,7 +10,6 @@ use app::game::map::GameField;
 
 pub const  SYSTEM: usize = 0;
 
-// а брокер тем временем всё обрастает. Не пора ли его сливать с "системой"
 pub struct Broker {
     channels :HashMap<usize, Vec<Rc<RefCell<GameObject>>>>, 
     units    :HashMap<usize, Rc<RefCell<GameObject>>>,
@@ -21,6 +20,7 @@ impl Broker {
 
     pub fn tick(&mut self, map :&mut GameField)-> errors::LogicResult<EventsList> {
         let mut events = Vec::new();
+        // TODO: тут тоже конструкция не нравится
         for (unit, gobj) in self.units.clone().iter() {
             let evs = gobj.borrow_mut().tick(self, map);
             match evs {
