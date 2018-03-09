@@ -2,7 +2,9 @@ use std::collections::HashMap;
 use app::game::logic::{Position, Direction, Events};
 use app::game::errors;
 use app::game::events::Broker;
-
+use app::game::mapobj::WallObj;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 #[derive(Debug)]
 pub struct GameField {
@@ -18,6 +20,17 @@ impl GameField {
             map_dim: 500,
             cell_dim: 10,
         }
+    }
+
+    pub fn generate_map(&mut self, brok :&mut Broker){
+        let mut key = brok.produce_key();
+        let mut wl = Rc::new(RefCell::new(WallObj{key:key}));
+        self.maps.insert(key,Position{x:(self.cell_dim as f32)/2.0+10.0, y:(self.cell_dim as f32)/2.0,});
+        brok.add_system(wl);
+        key = brok.produce_key();
+        wl = Rc::new(RefCell::new(WallObj{key:key}));
+        self.maps.insert(key,Position{x:(self.cell_dim as f32)/2.0, y:(self.cell_dim as f32)/2.0+10.0,});
+        brok.add_system(wl);
     }
 
     pub fn add_new(&mut self,ind: usize){
@@ -44,10 +57,12 @@ impl GameField {
             if *i == moved{
                 continue;
             }
-            let (xcoll,ycoll) = self.calc_collision(&j,new_pos); 
+            let (xcoll,ycoll) = self.calc_collision(&j,new_pos);
+            println!("newpos {:?} secpos {:?}", *new_pos, j);
+            println!("xcoll {} ycoll {}", xcoll, ycoll);
             match dir{
                 Direction::Down | Direction::Up => {
-                    if (ycoll < 0.0) {
+                    if ((ycoll < 0.0) && (xcoll < 0.0)) {
                         match dir {
                             Direction::Down => new_pos.y -= ycoll,
                             Direction::Up => new_pos.y += ycoll,
@@ -57,7 +72,7 @@ impl GameField {
                     }
                 },  
                 Direction::Left | Direction::Right =>{
-                    if (xcoll < 0.0) {
+                    if ((ycoll < 0.0) && (xcoll < 0.0)) {
                         match dir {
                             Direction::Left => new_pos.x -= xcoll,
                             Direction::Right => new_pos.x += xcoll,
@@ -92,8 +107,10 @@ impl GameField {
                 unit.x += d as f32;
             },
         }
-        self.check_collisions(ind, dir.clone(), &mut unit);
+        let mut coll_check  = self.check_collisions(ind, dir.clone(), &mut unit)?;
         self.maps.insert(ind, unit.clone());
-        return Ok(vec![Events::ChangePosition{pos: unit.clone(), dir: dir.clone()},],); 
+        let mut res = vec![Events::ChangePosition{pos: unit.clone(), dir: dir.clone()},];
+        res.append(&mut coll_check);
+        return Ok(res); 
     }
 }

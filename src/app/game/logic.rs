@@ -150,7 +150,12 @@ impl Game {
     }
 
     pub fn new() -> Game{
-        let map = GameField::new();
-        Game{logic: Logic{system: Rc::new(RefCell::new(events::Broker::new())), map: map}, users: HashMap::new()}
+        let mut map = GameField::new();
+        let mut brok = Rc::new(RefCell::new(events::Broker::new()));
+        {
+            let mut bt = RefCell::borrow_mut(&mut brok);
+            map.generate_map(&mut bt);
+        }
+        Game{logic: Logic{system: brok, map: map}, users: HashMap::new()}
     }
 }
