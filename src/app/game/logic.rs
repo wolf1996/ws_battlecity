@@ -9,6 +9,22 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use app::game::events::SYSTEM;
 use app::game::map::GameField;
+use serde::Serializer;
+use erased_serde::Serialize as ESerialize;
+use std::fmt::Debug;
+use serde::ser::Serialize;
+
+pub trait InfoObject: ESerialize + Send + Debug{
+    fn clone_box(&self) -> Box<InfoObject>;
+}
+
+impl Clone for Box<InfoObject> {
+    fn clone(&self) -> Box<InfoObject> {
+        self.clone_box()
+    }
+}
+
+serialize_trait_object!(InfoObject);
 
 const NUM_PLAYERS : usize = 1;
 
@@ -32,7 +48,7 @@ pub struct Message {
 pub type  EventsList = Vec<EventContainer>;
 
 // Вговнокодим. Но надо бы добавить человеческий роутинг
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Clone)]
 pub struct EventContainer {
     pub unit: usize,
     pub evs : Events,
@@ -68,7 +84,7 @@ pub enum Unit {
     Tank(tank::Tank),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Clone)]
 pub enum Events {
     Command(MessageContainer),
     ChangePosition {
@@ -90,7 +106,16 @@ pub enum Events {
         fst :usize,
         scd :usize,
     },
-    Error {err: String, user: String},
+    Error {
+        err: String,
+        user: String,
+    },
+    #[serde(serialize_with = "info_object_serializer")]
+    GameInfo (Box<InfoObject>),
+}
+
+fn info_object_serializer<S>(to_serialize :&Box<InfoObject>, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+    to_serialize.serialize(serializer)
 }
 
 
