@@ -11,13 +11,27 @@ use app::game::logic::GameObject;
 use std::borrow::Borrow;
 use app::game::events::Broker;
 use std::cell::RefCell;
-use app::game::logic::{EventContainer, EventsList};
+use app::game::logic::{EventContainer, EventsList, InfoObject};
 use app::game::map::GameField;
 
+
+// TODO: привести поля в однообразный вид
 pub struct User {
     id         : usize,
     healpoints : i8,
     units      : Vec<Rc<RefCell<GameObject>>>,
+}
+
+// TODO: попробовать разобраться с полями, возможно - макросы
+#[derive(Clone, Debug, Serialize)]
+pub struct UserInfo{
+    item : String,
+    id   : usize,
+    hp   : i8,
+}
+
+impl InfoObject for UserInfo{
+
 }
 
 impl User {
@@ -60,6 +74,11 @@ impl GameObject for User {
     }
 
     fn get_info(&self) -> errors::LogicResult<EventsList>{
-        unimplemented!()
+        let uif = UserInfo{
+            id: self.id.clone(),
+            item: "User".to_owned(),
+            hp  : self.healpoints,
+        };
+        Ok(vec![EventContainer{unit: self.id.clone(), evs :Events::GameInfo(Box::new(uif))},])
     }
 }

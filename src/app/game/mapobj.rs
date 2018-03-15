@@ -7,13 +7,15 @@ use serde;
 
 #[derive(Clone, Debug, Serialize)]
 pub struct WallInfo{
-    my_type : String
+    item : String,
+    id   : usize
 }
 
 impl WallInfo{
-    fn new() -> WallInfo{
+    fn new(id :usize) -> WallInfo{
         WallInfo{
-            my_type: "Wall".to_owned()
+            item: "Wall".to_owned(),
+            id  : id,
         }
     }
 }
@@ -36,6 +38,6 @@ impl GameObject for WallObj {
         self.key.clone()
     }
     fn get_info(&self) -> LogicResult<EventsList>{
-        Ok(vec![EventContainer{unit: self.key.clone(), evs :Events::GameInfo(Box::new(WallInfo::new()))},])
+        Ok(vec![EventContainer{unit: self.key.clone(), evs :Events::GameInfo(Box::new(WallInfo::new(self.key.clone())))},])
     }
 }
