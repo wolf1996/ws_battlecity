@@ -58,4 +58,8 @@ impl GameObject for User {
     fn key(&self) -> usize {
         self.id.clone()
     }
+
+    fn get_info(&self) -> errors::LogicResult<EventsList>{
+        unimplemented!()
+    }
 }

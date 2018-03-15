@@ -14,8 +14,19 @@ use erased_serde::Serialize as ESerialize;
 use std::fmt::Debug;
 use serde::ser::Serialize;
 
-pub trait InfoObject: ESerialize + Send + Debug{
+const NUM_PLAYERS : usize = 1;
+
+pub trait InfoObject: ESerialize + Send + Debug + InfoObjectClone{
+}
+
+trait InfoObjectClone {
     fn clone_box(&self) -> Box<InfoObject>;
+}
+
+impl<T> InfoObjectClone for T where T: 'static + InfoObject + Clone {
+    fn clone_box(&self) -> Box<InfoObject> {
+        Box::new(self.clone())
+    }
 }
 
 impl Clone for Box<InfoObject> {
@@ -25,8 +36,6 @@ impl Clone for Box<InfoObject> {
 }
 
 serialize_trait_object!(InfoObject);
-
-const NUM_PLAYERS : usize = 1;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Meta {
@@ -124,6 +133,7 @@ pub trait GameObject {
     fn process (&mut self, brok: &mut events::Broker,  map: &mut GameField, msg :EventContainer) ->  LogicResult<EventsList>;
     fn tick (&mut self, brok: &mut events::Broker,   map: &mut GameField) ->  LogicResult<EventsList>;
     fn key(&self) -> usize;
+    fn get_info(&self) -> LogicResult<EventsList>;
 }
 
 pub struct Game {
