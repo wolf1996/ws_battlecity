@@ -1,5 +1,5 @@
 use app::game::errors;
-use app::game::logic::{Position, GameObject, MessageContainer, Events, Commands};
+use app::game::logic::{Position, GameObject, MessageContainer, Events, Commands, InfoObject};
 use std::rc::Rc;
 use app::game::events;
 use app::game::logic::Direction;
@@ -14,6 +14,17 @@ enum Status {
     Standing,
 }
 
+#[derive(Debug, Serialize, Clone)]
+pub struct TankInfo{
+    dir   :Direction,
+    id    :usize,
+    item  :String,
+    state :Status,
+}
+
+
+impl InfoObject for TankInfo {
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Tank {
@@ -111,6 +122,12 @@ impl GameObject for Tank {
     }
 
     fn get_info(&self) -> errors::LogicResult<EventsList>{
-        unimplemented!()
+        let tif = TankInfo{
+            dir   :self.dir.clone(),
+            id    :self.id.clone(),
+            item  :"Tank".to_owned(),
+            state :self.state.clone(),
+        };
+        Ok(vec![EventContainer{unit: self.id.clone(), evs :Events::GameInfo(Box::new(tif))},])
     }
 }

@@ -15,7 +15,7 @@ pub struct Broker {
     units    :HashMap<usize, Rc<RefCell<GameObject>>>,
     counter  :usize,
 }
- 
+
 impl Broker {
 
     pub fn tick(&mut self, map :&mut GameField)-> errors::LogicResult<EventsList> {
