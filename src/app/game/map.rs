@@ -1,16 +1,19 @@
 use std::collections::HashMap;
-use app::game::logic::{Position, Direction, Events};
+use app::game::logic::{Position, Direction, Events, InfoObject};
 use app::game::errors;
 use app::game::events::Broker;
 use app::game::mapobj::WallObj;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Clone)]
 pub struct GameField {
     maps: HashMap<usize,Position>,
     map_dim:  u32,
     cell_dim: u32,
+}
+
+impl InfoObject for GameField{
 }
 
 impl GameField {
