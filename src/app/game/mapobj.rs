@@ -37,7 +37,7 @@ impl GameObject for WallObj {
     fn key(&self) -> usize{
         self.key.clone()
     }
-    fn get_info(&self) -> LogicResult<EventsList>{
-        Ok(vec![EventContainer{unit: self.key.clone(), evs :Events::GameInfo(Box::new(WallInfo::new(self.key.clone())))},])
+    fn get_info(&self) -> LogicResult<Box<InfoObject>>{
+        Ok(Box::new(WallInfo::new(self.key.clone())))
     }
 }

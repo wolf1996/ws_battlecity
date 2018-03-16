@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use app::game::logic::GameObject;
+use app::game::logic::{GameObject, InfoObject};
 use app::game::errors;
 use app::game::logic::Events as MessageEvents;
 use app::game::logic::EventsList;
@@ -96,12 +96,12 @@ impl Broker {
         self.counter.clone()
     }
 
-    pub fn collect_info(&self) -> errors::LogicResult<EventsList> {
+    pub fn collect_info(&self) -> errors::LogicResult<Vec<Box<InfoObject>>> {
         let mut evs = Vec::new();
         for (ref i, ref j) in self.units.iter(){
             let mut e2 =  RefCell::borrow(j).get_info()?;
-            evs.append(&mut e2);
+            evs.push(e2);
         }
-        return Ok(evs as EventsList);
+        return Ok(evs);
     }
 }

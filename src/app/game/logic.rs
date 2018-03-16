@@ -9,10 +9,9 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use app::game::events::SYSTEM;
 use app::game::map::GameField;
-use serde::Serializer;
 use erased_serde::Serialize as ESerialize;
 use std::fmt::Debug;
-use serde::ser::Serialize;
+use serde::ser::{Serialize, Serializer, SerializeSeq};
 
 const NUM_PLAYERS : usize = 1;
 
@@ -120,11 +119,15 @@ pub enum Events {
         user: String,
     },
     #[serde(serialize_with = "info_object_serializer")]
-    GameInfo (Box<InfoObject>),
+    GameInfo (Vec<Box<InfoObject>>),
 }
 
-fn info_object_serializer<S>(to_serialize :&Box<InfoObject>, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-    to_serialize.serialize(serializer)
+fn info_object_serializer<S>(to_serialize :&Vec<Box<InfoObject>>, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+    let mut seq = serializer.serialize_seq(Some(to_serialize.len()))?;
+    for e in to_serialize {
+        seq.serialize_element(e)?;
+    }
+    seq.end()
 }
 
 
@@ -133,7 +136,7 @@ pub trait GameObject {
     fn process (&mut self, brok: &mut events::Broker,  map: &mut GameField, msg :EventContainer) ->  LogicResult<EventsList>;
     fn tick (&mut self, brok: &mut events::Broker,   map: &mut GameField) ->  LogicResult<EventsList>;
     fn key(&self) -> usize;
-    fn get_info(&self) -> LogicResult<EventsList>;
+    fn get_info(&self) -> LogicResult<Box<InfoObject>>;
 }
 
 pub struct Game {
@@ -174,7 +177,8 @@ impl Game {
         RefCell::borrow_mut(&mut self.logic.system).add_system(refu.clone());
         let mut res = vec![EventContainer{unit: SYSTEM, evs: Events::UserConnected{user_name: user}}];
         let mut info = self.collect_info()?;
-        res.append(&mut info);
+        let mut infoevent = EventContainer{unit: SYSTEM, evs: Events::GameInfo(info)};
+        res.push(infoevent);
         return Ok(res as EventsList);
     }
 
@@ -197,7 +201,7 @@ impl Game {
         Game{logic: Logic{system: brok, map: map}, users: HashMap::new()}
     }
 
-    pub fn collect_info(&self) -> errors::LogicResult<EventsList> {
+    pub fn collect_info(&self) -> errors::LogicResult<Vec<Box<InfoObject>>> {
         RefCell::borrow(& self.logic.system).collect_info()
     }
 }

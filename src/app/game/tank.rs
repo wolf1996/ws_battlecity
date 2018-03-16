@@ -121,13 +121,13 @@ impl GameObject for Tank {
         self.id.clone()
     }
 
-    fn get_info(&self) -> errors::LogicResult<EventsList>{
+    fn get_info(&self) -> errors::LogicResult<Box<InfoObject>>{
         let tif = TankInfo{
             dir   :self.dir.clone(),
             id    :self.id.clone(),
             item  :"Tank".to_owned(),
             state :self.state.clone(),
         };
-        Ok(vec![EventContainer{unit: self.id.clone(), evs :Events::GameInfo(Box::new(tif))},])
+        Ok(Box::new(tif))
     }
 }

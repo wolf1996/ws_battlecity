@@ -73,12 +73,12 @@ impl GameObject for User {
         self.id.clone()
     }
 
-    fn get_info(&self) -> errors::LogicResult<EventsList>{
+    fn get_info(&self) -> errors::LogicResult<Box<InfoObject>>{
         let uif = UserInfo{
             id: self.id.clone(),
             item: "User".to_owned(),
             hp  : self.healpoints,
         };
-        Ok(vec![EventContainer{unit: self.id.clone(), evs :Events::GameInfo(Box::new(uif))},])
+        Ok(Box::new(uif))
     }
 }
