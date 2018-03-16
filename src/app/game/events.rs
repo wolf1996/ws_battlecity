@@ -95,4 +95,13 @@ impl Broker {
         self.counter += 1;
         self.counter.clone()
     }
+
+    pub fn collect_info(&self) -> errors::LogicResult<EventsList> {
+        let mut evs = Vec::new();
+        for (ref i, ref j) in self.units.iter(){
+            let mut e2 =  RefCell::borrow(j).get_info()?;
+            evs.append(&mut e2);
+        }
+        return Ok(evs as EventsList);
+    }
 }

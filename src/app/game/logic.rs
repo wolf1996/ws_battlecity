@@ -172,7 +172,10 @@ impl Game {
         let refu = Rc::new(RefCell::new(us));
         self.users.insert(user.clone(), refu.clone());
         RefCell::borrow_mut(&mut self.logic.system).add_system(refu.clone());
-        return Ok(vec![EventContainer{unit: SYSTEM, evs: Events::UserConnected{user_name: user}}] as EventsList);
+        let mut res = vec![EventContainer{unit: SYSTEM, evs: Events::UserConnected{user_name: user}}];
+        let mut info = self.collect_info()?;
+        res.append(&mut info);
+        return Ok(res as EventsList);
     }
 
     pub fn tick(&mut self) ->  LogicResult<EventsList>{
@@ -192,5 +195,9 @@ impl Game {
             map.generate_map(&mut bt);
         }
         Game{logic: Logic{system: brok, map: map}, users: HashMap::new()}
+    }
+
+    pub fn collect_info(&self) -> errors::LogicResult<EventsList> {
+        RefCell::borrow(& self.logic.system).collect_info()
     }
 }
