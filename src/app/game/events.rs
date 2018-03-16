@@ -38,10 +38,12 @@ impl Broker {
             None => return Err(errors::GameLogicError{info:"No such unit".to_string()}),
         };
         let mut un = RefCell::borrow_mut(&mut unit);
-        let rsp = match un.process(self, map, evnt) {
-            Ok(expr) => expr,
-            Err(err) => return Err(err),
-        };
+        let ev = un.process(self, map, evnt)?;
+        let mut rsp = Vec::new();
+        for i in ev {
+            let mut buf = self.pass_message(map, i)?;
+            rsp.append(&mut buf);
+        }
         Ok(rsp)
     }
 
