@@ -1,18 +1,18 @@
 extern crate ws;
 
 use self::ws::Error as WsError;
-use std::fmt;
 use std::error;
+use std::fmt;
 use std::sync::mpsc::SendError;
 
 #[derive(Debug, Clone)]
-pub struct FailedToStart{
-    pub info :String,
+pub struct FailedToStart {
+    pub info: String,
 }
 
 impl fmt::Display for FailedToStart {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"Error while starting {}", self.info)
+        write!(f, "Error while starting {}", self.info)
     }
 }
 
@@ -28,18 +28,20 @@ impl error::Error for FailedToStart {
 
 impl From<WsError> for FailedToStart {
     fn from(errvar: WsError) -> Self {
-        FailedToStart{info: errvar.to_string()}
+        FailedToStart {
+            info: errvar.to_string(),
+        }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct MessageHandlerError{
-    pub info :String,
+pub struct MessageHandlerError {
+    pub info: String,
 }
 
 impl fmt::Display for MessageHandlerError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"Error while message handling {}", self.info)
+        write!(f, "Error while message handling {}", self.info)
     }
 }
 
@@ -53,8 +55,13 @@ impl error::Error for MessageHandlerError {
     }
 }
 
-impl <T: Send> From<SendError<T>> for MessageHandlerError where T: Send {
+impl<T: Send> From<SendError<T>> for MessageHandlerError
+where
+    T: Send,
+{
     fn from(errvar: SendError<T>) -> Self {
-        MessageHandlerError{info: errvar.to_string()}
+        MessageHandlerError {
+            info: errvar.to_string(),
+        }
     }
 }

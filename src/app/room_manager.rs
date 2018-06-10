@@ -1,11 +1,11 @@
-use std::sync::RwLock;
-use std::collections::HashMap;
 use app::errors::MessageHandlerError;
-use std::collections::hash_map::Entry;
-use std::sync::mpsc::{Sender, Receiver};
-use std::sync::mpsc::channel;
-use std::sync::Mutex;
 use app::logic as inf_logic;
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
+use std::sync::mpsc::channel;
+use std::sync::mpsc::{Receiver, Sender};
+use std::sync::Mutex;
+use std::sync::RwLock;
 
 pub struct Room {
     pub messages: Mutex<Sender<inf_logic::MessageContainer>>,
@@ -17,17 +17,7 @@ pub struct RoomsManager {
 }
 
 impl RoomsManager {
-    pub fn pass_mesage(&self, msg: inf_logic::MessageContainer) ->  Result<(), MessageHandlerError>{
-        let mut rooms = self.rooms.write().unwrap();
-        let room = match rooms.entry(msg.meta.room.clone()) {
-            Entry::Occupied(o) => o.into_mut(),
-            Entry::Vacant(v) => v.insert(self.produce_room()),
-        };
-        room.messages.lock().unwrap().send(msg)?;
-        Ok(())
-    }
-    
-    pub fn add_player(&self, msg: inf_logic::MessageContainer)->  Result<(), MessageHandlerError>{
+    pub fn pass_mesage(&self, msg: inf_logic::MessageContainer) -> Result<(), MessageHandlerError> {
         let mut rooms = self.rooms.write().unwrap();
         let room = match rooms.entry(msg.meta.room.clone()) {
             Entry::Occupied(o) => o.into_mut(),
@@ -37,7 +27,7 @@ impl RoomsManager {
         Ok(())
     }
 
-    pub fn remove_player(&self, msg: inf_logic::MessageContainer)->  Result<(), MessageHandlerError>{
+    pub fn add_player(&self, msg: inf_logic::MessageContainer) -> Result<(), MessageHandlerError> {
         let mut rooms = self.rooms.write().unwrap();
         let room = match rooms.entry(msg.meta.room.clone()) {
             Entry::Occupied(o) => o.into_mut(),
@@ -47,9 +37,24 @@ impl RoomsManager {
         Ok(())
     }
 
-    fn produce_room(&self)  -> Room {
+    pub fn remove_player(
+        &self,
+        msg: inf_logic::MessageContainer,
+    ) -> Result<(), MessageHandlerError> {
+        let mut rooms = self.rooms.write().unwrap();
+        let room = match rooms.entry(msg.meta.room.clone()) {
+            Entry::Occupied(o) => o.into_mut(),
+            Entry::Vacant(v) => v.insert(self.produce_room()),
+        };
+        room.messages.lock().unwrap().send(msg)?;
+        Ok(())
+    }
+
+    fn produce_room(&self) -> Room {
         let (tx, rc) = channel();
-        self.out.lock().unwrap().send(rc);
-        Room{messages: Mutex::new(tx.clone())}
+        self.out.lock().unwrap().send(rc).expect("produsing room sensor error");
+        Room {
+            messages: Mutex::new(tx.clone()),
+        }
     }
 }
