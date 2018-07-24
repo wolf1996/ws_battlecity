@@ -1,27 +1,27 @@
 use app::game::errors;
-use app::game::events;
-use app::game::logic::Direction;
-use app::game::logic::{Commands, Events, GameObject, InfoObject, MessageContainer};
-use app::game::logic::{EventContainer, EventsList};
+use app::game::broker;
+use app::game::events::{Commands, Events, MessageContainer, Direction};
+use app::game::events::{EventContainer, AddresableEventsList};
+use app::game::logic::{GameObject, InfoObject};
 use app::game::map::GameField;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-enum Status {
+pub enum Status {
     Moving { delta: usize },
     Standing,
 }
 
 #[derive(Debug, Serialize, Clone)]
 pub struct TankInfo {
-    dir: Direction,
-    id: usize,
-    item: String,
-    state: Status,
+    pub dir: Direction,
+    pub id: usize,
+    pub item: String,
+    pub state: Status,
 }
 
 impl InfoObject for TankInfo {}
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Clone)]
 pub struct Tank {
     dir: Direction,
     id: usize,
@@ -32,22 +32,17 @@ pub struct Tank {
 impl Tank {
     fn process_message_container(
         &mut self,
-        brok: &mut events::Broker,
-        map: &mut GameField,
         msg: MessageContainer,
-    ) -> errors::LogicResult<Vec<Events>> {
+    ) -> errors::LogicResult<()> {
         match msg.msg.cmd {
             Commands::Move { direction: dir } => {
-                return self.moving_command_process(brok, map, dir);
+                return self.moving_command_process(dir);
             }
             Commands::ChangeDirection { newdir: dir } => {
                 return self.change_direction_command_process(dir);
             }
             _ => {
-                return Ok(vec![Events::Error {
-                    err: "invalid command".to_owned(),
-                    user: msg.meta.user_name.clone(),
-                }])
+                return Ok(())// TODO: error 
             }
         }
     }
@@ -55,43 +50,27 @@ impl Tank {
     fn change_direction_command_process(
         &mut self,
         dir: Direction,
-    ) -> errors::LogicResult<Vec<Events>> {
+    ) -> errors::LogicResult<()> {
         self.state = Status::Standing;
         self.dir = dir;
-        return Ok(vec![Events::ChangeDirection {
-            dir: self.dir.clone(),
-        }]);
+        return Ok(());
     }
 
     fn moving_command_process(
         &mut self,
-        _brok: &mut events::Broker,
-        _map: &mut GameField,
         dir: Direction,
-    ) -> errors::LogicResult<Vec<Events>> {
+    ) -> errors::LogicResult<()> {
         self.state = Status::Moving { delta: 1 };
         self.dir = dir;
-        return Ok(vec![Events::ChangeDirection {
-            dir: self.dir.clone(),
-        }]);
+        return Ok(());
     }
 
-    fn moving_tick(
-        &mut self,
-        brok: &mut events::Broker,
-        map: &mut GameField,
-        del: usize,
-    ) -> errors::LogicResult<Vec<Events>> {
-        return map.move_unit(brok, self.id, self.dir.clone(), del);
-    }
-
-    pub fn new(id: usize, owner: usize, map: &mut GameField) -> Tank {
-        map.add_new(id);
+    pub fn new(id: usize, owner: usize) -> Tank {
         Tank {
             dir: Direction::Up,
             id: id,
             owner: owner,
-            state: Status::Standing,
+            state: Status::Standing
         }
     }
 }
@@ -99,50 +78,23 @@ impl Tank {
 impl GameObject for Tank {
     fn process(
         &mut self,
-        brok: &mut events::Broker,
-        map: &mut GameField,
         msg: EventContainer,
-    ) -> errors::LogicResult<EventsList> {
-        let mut evs = Vec::new();
+    ) -> errors::LogicResult<()> {
         match msg.evs {
             Events::Command(sm) => {
-                match self.process_message_container(brok, map, sm) {
-                    Ok(res) => {
-                        evs = [&evs[..], &res[..]].concat();
-                    }
-                    Err(err) => return Err(err),
-                };
+                self.process_message_container(sm)?;
             }
             _ => unimplemented!(),
         };
-        let mut res = Vec::new();
-        for i in evs {
-            let mut ev = EventContainer {
-                unit: self.id.clone(),
-                evs: i,
-            };
-            res.push(ev)
-        }
-        Ok(res)
+        Ok(())
     }
 
     fn tick(
         &mut self,
-        brok: &mut events::Broker,
-        map: &mut GameField,
-    ) -> errors::LogicResult<EventsList> {
+    ) -> errors::LogicResult<AddresableEventsList> {
         match self.state.clone() {
             Status::Moving {delta: delta} => {
-                let evs = self.moving_tick(brok, map, delta.clone())?;
-                let mut res = Vec::new();
-                for i in evs {
-                    let ip = EventContainer {
-                        unit: self.id.clone(),
-                        evs: i,
-                    };
-                    res.push(ip);
-                }
-                Ok(res)
+                Ok(vec![]) // вот тут надо уточнить
             }
             Status::Standing => Ok(vec![]),
         }

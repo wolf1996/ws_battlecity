@@ -1,9 +1,10 @@
 use app::game::errors;
 use app::game::errors::LogicResult;
-use app::game::events;
-use app::game::events::SYSTEM;
+use app::game::events::{AddresableEventsList, MessageContainer};
+use app::game::events::{EventsList, Events, EventContainer};
+use app::game::broker::SYSTEM;
+use app::game::broker;
 use app::game::map::GameField;
-use app::game::tank;
 use app::game::user::User;
 use erased_serde::Serialize as ESerialize;
 use serde::ser::{SerializeSeq, Serializer};
@@ -39,89 +40,7 @@ impl Clone for Box<InfoObject> {
 
 serialize_trait_object!(InfoObject);
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Meta {
-    pub user_name: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct MessageContainer {
-    pub msg: Message,
-    pub meta: Meta,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Message {
-    pub unit: usize,
-    pub cmd: Commands,
-}
-
-pub type EventsList = Vec<EventContainer>;
-
-// Вговнокодим. Но надо бы добавить человеческий роутинг
-#[derive(Debug, Serialize, Clone)]
-pub struct EventContainer {
-    pub unit: usize,
-    pub evs: Events,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum Direction {
-    Up,
-    Right,
-    Down,
-    Left,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Position {
-    pub x: f32,
-    pub y: f32,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum Commands {
-    Move { direction: Direction },
-    ChangeDirection { newdir: Direction },
-    Fire,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum Unit {
-    Tank(tank::Tank),
-}
-
-#[derive(Debug, Serialize, Clone)]
-pub enum Events {
-    Command(MessageContainer),
-    ChangePosition {
-        pos: Position,
-        dir: Direction,
-    },
-    ChangeDirection {
-        dir: Direction,
-    },
-    Fire {
-        pos: Position,
-        dir: Direction,
-    },
-    Spawned(Unit),
-    UserConnected {
-        user_name: String,
-    },
-    Collision {
-        fst: usize,
-        scd: usize,
-    },
-    Error {
-        err: String,
-        user: String,
-    },
-    #[serde(serialize_with = "info_object_serializer")]
-    GameInfo(Vec<Box<InfoObject>>),
-}
-
-fn info_object_serializer<S>(
+pub fn info_object_serializer<S>(
     to_serialize: &Vec<Box<InfoObject>>,
     serializer: S,
 ) -> Result<S::Ok, S::Error>
@@ -139,11 +58,9 @@ where
 pub trait GameObject {
     fn process(
         &mut self,
-        brok: &mut events::Broker,
-        map: &mut GameField,
         msg: EventContainer,
-    ) -> LogicResult<EventsList>;
-    fn tick(&mut self, brok: &mut events::Broker, map: &mut GameField) -> LogicResult<EventsList>;
+    )-> errors::LogicResult<()>;
+    fn tick(&mut self) -> LogicResult<AddresableEventsList>;
     fn key(&self) -> usize;
     fn get_info(&self) -> LogicResult<Box<InfoObject>>;
 }
@@ -154,35 +71,27 @@ pub struct Game {
 }
 
 pub struct Logic {
-    pub system: Rc<RefCell<events::Broker>>,
+    pub system: Rc<RefCell<broker::Broker>>,
     pub map: GameField,
 }
 
 impl Game {
     //TODO: State machin бы, но очень долго делать.
-    pub fn process_message(&mut self, msg: MessageContainer) -> LogicResult<EventsList> {
+    pub fn process_message(&mut self, msg: MessageContainer) -> LogicResult<()> {
         if !self.users.len() < NUM_PLAYERS {
-            return Ok(vec![EventContainer {
-                unit: 0,
-                evs: Events::Error {
-                    err: "not enouth players".to_owned(),
-                    user: msg.meta.user_name.clone(),
-                },
-            }] as EventsList);
+            return Err(errors::GameLogicError{ 
+                info :"Not enought players".to_string(),
+            });
         }
         let evc = EventContainer {
             unit: SYSTEM,
             evs: Events::Command(msg.clone()),
         };
-        let evs = match self.logic.system.borrow_mut().pass_direct(
+        self.logic.system.borrow_mut().pass_direct_unit(
             msg.msg.unit,
             evc,
-            &mut self.logic.map,
-        ) {
-            Ok(some) => some,
-            Err(er) => return Err(er),
-        };
-        Ok(evs)
+        )?;
+        Ok(())
     }
 
     pub fn add_player(&mut self, user: String) -> LogicResult<EventsList> {
@@ -226,7 +135,7 @@ impl Game {
 
     pub fn new() -> Game {
         let mut map = GameField::new();
-        let mut brok = Rc::new(RefCell::new(events::Broker::new()));
+        let mut brok = Rc::new(RefCell::new(broker::Broker::new()));
         {
             let mut bt = RefCell::borrow_mut(&mut brok);
             map.generate_map(&mut bt);

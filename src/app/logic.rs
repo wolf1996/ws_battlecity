@@ -2,7 +2,9 @@ extern crate ws;
 
 use self::ws::Sender as WsSender;
 use app::game::logic as game_logic;
-use app::game::logic::{EventContainer, Game};
+use app::game::events::EventContainer;
+use app::game::logic::Game;
+use app::game::events;
 use app::logic;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -21,7 +23,7 @@ pub struct MessageMeta {
 }
 
 pub enum Content {
-    Message(game_logic::Message),
+    Message(events::Message),
     Close,
     Start(WsSender),
 }
@@ -49,17 +51,14 @@ impl GameContainer {
         for mut msg in &mut self.channel.try_iter() {
             match msg.message {
                 Content::Message(mg) => {
-                    let mcnt = game_logic::MessageContainer {
+                    let mcnt = events::MessageContainer {
                         msg: mg,
-                        meta: game_logic::Meta {
+                        meta: events::Meta {
                             user_name: msg.meta.name.clone(),
                         },
                     };
                     match self.game.process_message(mcnt) {
-                        Ok(some) => {
-                            for i in some {
-                                self.broadcast(Box::new(i));
-                            }
+                        Ok(()) => {
                         }
                         Err(some) => println!(" Some error in logic process {:?}", some),
                     };

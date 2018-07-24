@@ -1,7 +1,8 @@
 use app::game::errors;
-use app::game::events::Broker;
-use app::game::logic::{Direction, Events, InfoObject, Position};
-use app::game::mapobj::WallObj;
+use app::game::broker::Broker;
+use app::game::events::{Direction, Events, Position};
+use app::game::logic::InfoObject;
+use app::game::wallobj::WallObj;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -74,7 +75,7 @@ impl GameField {
         dir: Direction,
         new_pos: &mut Position,
     ) -> errors::LogicResult<Vec<Events>> {
-        // TODO: оптимизируй это. Жутко прожорливый алгоритм
+        // TODO: оптиPositionмизируй это. Жутко прожорливый алгоритм
         let mut evs = Vec::new();
         for (i, j) in self.maps.iter() {
             if *i == moved {
@@ -119,7 +120,6 @@ impl GameField {
     // стал прыгать на 8
     pub fn move_unit(
         &mut self,
-        _brok: &mut Broker,
         ind: usize,
         dir: Direction,
         d: usize,

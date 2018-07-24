@@ -1,7 +1,7 @@
 extern crate ws;
 
 use self::ws::Sender as WsSender;
-use app::game::logic::EventContainer;
+use app::game::events::EventContainer;
 use serde_json;
 use std::boxed::Box;
 use std::sync::mpsc::channel;

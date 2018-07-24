@@ -1,7 +1,6 @@
 extern crate ws;
 
 use self::ws::Sender as WsSender;
-use app::game::logic;
 use app::logic as inf_logic;
 use app::room_manager::RoomsManager;
 use serde_json;
@@ -33,7 +32,7 @@ fn message_manager_worker(rec: mpsc::Receiver<MessageContainer>, rms_arc: &mut A
         // TODO: добравить обработку ошибки
         match i.message {
             Content::Message(mgg) => {
-                let mut msg: logic::Message = serde_json::from_str(&mgg[..]).unwrap();
+                let mut msg = serde_json::from_str(&mgg[..]).unwrap();
                 match rms.pass_mesage(inf_logic::MessageContainer {
                     meta: i.meta,
                     message: inf_logic::Content::Message(msg),

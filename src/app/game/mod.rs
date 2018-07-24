@@ -5,3 +5,5 @@ pub mod map;
 pub mod mapobj;
 pub mod tank;
 pub mod user;
+pub mod broker;
+pub mod wallobj;

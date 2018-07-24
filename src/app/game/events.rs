@@ -1,132 +1,116 @@
-use app::game::errors;
-use app::game::logic::EventContainer;
-use app::game::logic::EventsList;
-use app::game::logic::{GameObject, InfoObject};
-use app::game::map::GameField;
+use app::game::tank;
+use app::game::logic::InfoObject;
+use app::game::logic::info_object_serializer;
+use std::boxed::Box;
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::rc::Rc;
+use std::marker::Send;
 
-pub const SYSTEM: usize = 0;
+const NUM_PLAYERS: usize = 1;
 
-pub struct Broker {
-    channels: HashMap<usize, Vec<Rc<RefCell<GameObject>>>>,
-    units: HashMap<usize, Rc<RefCell<GameObject>>>,
-    counter: usize,
+pub type AddresableEventsList = Vec<AddresableContainer>;
+
+#[derive(Debug, Serialize, Clone)]
+pub enum AddresType {
+    Broadcast,
+    Direct(usize),
+    System,
 }
 
-impl Broker {
-    pub fn tick(&mut self, map: &mut GameField) -> errors::LogicResult<EventsList> {
-        let mut events = Vec::new();
-        // TODO: тут тоже конструкция не нравится
-        for (_unit, gobj) in self.units.clone().iter() {
-            let evs = gobj.borrow_mut().tick(self, map);
-            match evs {
-                Ok(some) => events.append(&mut some.clone()),
-                Err(some) => return Err(some),
-            }
-        }
-        Ok(events)
-    }
+#[derive(Debug, Serialize, Clone)]
+pub struct AddresableContainer {
+    pub addres: Vec<AddresType>,
+    pub events: EventsList,
+}
 
-    // а вот тут вот следовало бы поправить. скорее всего не будет реакции на
-    pub fn pass_direct(
-        &mut self,
-        key: usize,
-        evnt: EventContainer,
-        map: &mut GameField,
-    ) -> errors::LogicResult<EventsList> {
-        let mut unit = match self.units.get_mut(&key) {
-            Some(some) => some.clone(),
-            None => {
-                return Err(errors::GameLogicError {
-                    info: "No such unit".to_string(),
-                })
-            }
-        };
-        let mut un = RefCell::borrow_mut(&mut unit);
-        let ev = un.process(self, map, evnt)?;
-        let mut rsp = Vec::new();
-        for i in ev {
-            let mut buf = self.pass_message(map, i)?;
-            rsp.append(&mut buf);
-        }
-        Ok(rsp)
-    }
+pub type EventsList = Vec<EventContainer>;
 
-    // TODO: Реаллизовать паттерн комманда и enum-ами передавать нужные параметры для спауна объекта внутри
-    // системы и возвращать Rс на объект
-    pub fn add_system(&mut self, gobjo: Rc<RefCell<GameObject>>) -> errors::LogicResult<()> {
-        let gobj = gobjo.borrow();
-        self.channels.entry(gobj.key()).or_insert(Vec::new());
-        self.units.insert(gobj.key(), Rc::clone(&gobjo));
-        Ok(())
-    }
+// Вговнокодим. Но надо бы добавить человеческий роутинг
+#[derive(Debug, Serialize, Clone)]
+pub struct EventContainer {
+    pub unit: usize,
+    pub evs: Events,
+}
 
-    pub fn subscribe(&mut self, key: usize, subscriber: usize) -> errors::LogicResult<()> {
-        let gobk = match self.units.get(&subscriber) {
-            Some(some) => some.clone(),
-            None => {
-                return Err(errors::GameLogicError {
-                    info: "No such unit".to_owned(),
-                })
-            }
-        };
-        self.channels.insert(key, vec![gobk]);
-        Ok(())
-    }
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum Direction {
+    Up,
+    Right,
+    Down,
+    Left,
+}
 
-    pub fn pass_message(
-        &mut self,
-        map: &mut GameField,
-        evnt: EventContainer,
-    ) -> errors::LogicResult<EventsList> {
-        let mut events = vec![evnt];
-        let mut ind = 0;
-        while events.len() < ind {
-            let evnt = events.get(ind).unwrap().clone();
-            ind += 1;
-            let mut subs = match self.channels.get_mut(&evnt.unit.clone()) {
-                Some(some) => some.clone(),
-                None => {
-                    return Err(errors::GameLogicError {
-                        info: "No such channel".to_string(),
-                    })
-                }
-            };
-            for i in &mut subs.iter_mut() {
-                let mut gobj = RefCell::borrow_mut(i);
-                match gobj.process(self, map, evnt.clone()) {
-                    Ok(evs) => {
-                        events.append(&mut evs.clone());
-                    }
-                    Err(err) => return Err(err),
-                }
-            }
-        }
-        Ok(events)
-    }
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Position {
+    pub x: f32,
+    pub y: f32,
+}
 
-    pub fn new() -> Broker {
-        let brok = Broker {
-            units: HashMap::new(),
-            channels: HashMap::new(),
-            counter: SYSTEM,
-        };
-        return brok;
-    }
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum Commands {
+    Move { direction: Direction },
+    ChangeDirection { newdir: Direction },
+    Fire,
+}
 
-    pub fn produce_key(&mut self) -> usize {
-        self.counter += 1;
-        self.counter.clone()
-    }
+#[derive(Debug, Serialize, Clone)]
+pub enum Unit {
+    Tank(tank::Tank),
+    SomeDefaultUnit,
+}
 
-    pub fn collect_info(&self) -> errors::LogicResult<Vec<Box<InfoObject>>> {
-        let mut evs = Vec::new();
-        for (ref _i, ref j) in self.units.iter() {
-            let mut e2 = RefCell::borrow(j).get_info()?;
-            evs.push(e2);
-        }
-        return Ok(evs);
-    }
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MessageContainer {
+    pub msg: Message,
+    pub meta: Meta,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Meta {
+    pub user_name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Message {
+    pub unit: usize,
+    pub cmd: Commands,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub enum SpawneReq {
+    Tank,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub enum Events {
+    Command(MessageContainer),
+    ChangePosition {
+        pos: Position,
+        dir: Direction,
+    },
+    ChangeDirection {
+        dir: Direction,
+    },
+    Fire {
+        pos: Position,
+        dir: Direction,
+    },
+    Spawned{
+        owner: usize,
+        unit:  Unit,
+    },
+    SpawneRequest(SpawneReq),
+    UserConnected {
+        user_name: String,
+    },
+    Collision {
+        fst: usize,
+        scd: usize,
+    },
+    Error {
+        err: String,
+        user: String,
+    },
+    #[serde(serialize_with = "info_object_serializer")]
+    GameInfo(Vec<Box<InfoObject>>),
 }

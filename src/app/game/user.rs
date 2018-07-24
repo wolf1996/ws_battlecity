@@ -1,10 +1,8 @@
 use app::game::errors;
 use app::game::events;
-use app::game::logic;
-use app::game::logic::GameObject;
-use app::game::logic::{EventContainer, EventsList, InfoObject};
-use app::game::map::GameField;
 use app::game::tank;
+use app::game::logic::{GameObject, InfoObject};
+use app::game::events::{Events, Unit, EventContainer, SpawneReq, AddresableContainer, AddresableEventsList, AddresType};
 use std::boxed::Box;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -13,7 +11,7 @@ use std::rc::Rc;
 pub struct User {
     id: usize,
     healpoints: i8,
-    units: Vec<Rc<RefCell<GameObject>>>,
+    units: Vec<usize>,
 }
 
 // TODO: попробовать разобраться с полями, возможно - макросы
@@ -37,43 +35,46 @@ impl User {
 
     pub fn spawn_tank(
         &mut self,
-        stm: &mut events::Broker,
-        map: &mut GameField,
-    ) -> errors::LogicResult<logic::Events> {
-        let key = stm.produce_key();
-        let tankref = Rc::new(RefCell::new(tank::Tank::new(key, self.id.clone(), map)));
-        self.units.push(tankref.clone());
-        stm.add_system(tankref.clone())?;
-        stm.subscribe((*tankref).borrow().key(), self.id.clone())?;
-        let tkcopy = (*tankref).borrow().clone();
-        Ok(logic::Events::Spawned(logic::Unit::Tank(tkcopy)))
+    ) -> errors::LogicResult<events::Events> {
+        Ok(events::Events::SpawneRequest(SpawneReq::Tank))
     }
 }
 
 impl GameObject for User {
     fn process(
         &mut self,
-        _brok: &mut events::Broker,
-        _map: &mut GameField,
         msg: EventContainer,
-    ) -> errors::LogicResult<EventsList> {
-        match msg {
+    ) -> errors::LogicResult<()> {
+        match msg.evs {
+            Events::Spawned{owner: _owner, unit: unit} => {
+                if let Unit::Tank(tnk) = unit {
+                    self.units.push(tnk.key());
+                } else {
+                    unimplemented!();
+                }
+            },
             _ => unimplemented!(),
         }
+        Ok(())
     }
 
     fn tick(
         &mut self,
-        brok: &mut events::Broker,
-        map: &mut GameField,
-    ) -> errors::LogicResult<EventsList> {
+    ) -> errors::LogicResult<AddresableEventsList> {
         println!("tick processed");
         if self.units.len() < 1 {
-            let ev = self.spawn_tank(brok, map)?;
-            return Ok(vec![EventContainer {
-                unit: self.id.clone(),
-                evs: ev,
-            }]);
+            println!("User spawn tank requested");
+            let ev = self.spawn_tank()?;
+            let addrevlist = vec![
+                AddresableContainer{
+                    addres: vec![AddresType::System],
+                    events: vec![EventContainer {
+                            unit: self.id.clone(),
+                            evs: ev,
+                            }]
+                }
+            ];
+            return Ok(addrevlist);
         }
         Ok(vec![])
     }
