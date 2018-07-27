@@ -14,10 +14,11 @@ pub struct Broker {
     units: HashMap<usize, Rc<RefCell<GameObject>>>,
     task_queue: Vec<EventContainer>,
     counter: usize,
+    map: Rc<RefCell<GameField>>,
 }
 
 impl Broker {
-    pub fn tick(&mut self, map: &mut GameField) -> errors::LogicResult<EventsList> {
+    pub fn tick(&mut self) -> errors::LogicResult<EventsList> {
         let mut events = self.process_system_queue()?;
         for i in events.clone() {
             self.pass_message_addresable(i)?;
@@ -145,13 +146,9 @@ impl Broker {
         Ok(())
     }
 
-    pub fn spawn_handler(
-        &mut self,
-        user :usize, 
-        req  :SpawneReq,
-    )-> errors::LogicResult<AddresableEventsList>{
-        // TODO: добавить обработку реквеста
-        // желательно через "комманду"
+    pub fn spawn_tank(&mut self, 
+        user: usize 
+    ) -> errors::LogicResult<AddresableEventsList> {
         let key = self.produce_key();
         let tank = Tank::new(key, user);
         let tank_rc = Rc::new(RefCell::new(tank.clone()));
@@ -169,6 +166,19 @@ impl Broker {
             events: vec![ev,]
         };
         Ok(vec![res_event])
+    }
+
+    pub fn spawn_handler(
+        &mut self,
+        user :usize, 
+        req  :SpawneReq,
+    ) -> errors::LogicResult<AddresableEventsList>{
+        // TODO: добавить обработку реквеста
+        // желательно через "комманду"
+        match req {
+            SpawneReq::Tank => return self.spawn_tank(user),
+            _ => unimplemented!(),
+        }
     }
 
     pub fn pass_broadcast(
@@ -190,12 +200,13 @@ impl Broker {
         Ok(())
     }
 
-    pub fn new() -> Broker {
+    pub fn new(map:  Rc<RefCell<GameField>>) -> Broker {
         let brok = Broker {
             units: HashMap::new(),
             channels: HashMap::new(),
             task_queue: Vec::new(),
             counter: SYSTEM,
+            map: map,
         };
         return brok;
     }

@@ -72,7 +72,7 @@ pub struct Game {
 
 pub struct Logic {
     pub system: Rc<RefCell<broker::Broker>>,
-    pub map: GameField,
+    pub map: Rc<RefCell<GameField>>,
 }
 
 impl Game {
@@ -126,7 +126,7 @@ impl Game {
 
     pub fn tick(&mut self) -> LogicResult<EventsList> {
         let mut system = RefCell::borrow_mut(&mut self.logic.system);
-        let evs = match system.tick(&mut self.logic.map) {
+        let evs = match system.tick() {
             Ok(some) => some,
             Err(er) => return Err(er),
         };
@@ -134,11 +134,11 @@ impl Game {
     }
 
     pub fn new() -> Game {
-        let mut map = GameField::new();
-        let mut brok = Rc::new(RefCell::new(broker::Broker::new()));
+        let map = Rc::new(RefCell::new(GameField::new()));
+        let mut brok = Rc::new(RefCell::new(broker::Broker::new(map.clone())));
         {
             let mut bt = RefCell::borrow_mut(&mut brok);
-            map.generate_map(&mut bt);
+            map.borrow_mut().generate_map(&mut bt);
         }
         Game {
             logic: Logic {
@@ -150,7 +150,7 @@ impl Game {
     }
 
     pub fn collect_info(&self) -> errors::LogicResult<Vec<Box<InfoObject>>> {
-        let mapinfo = Box::new(self.logic.map.clone());
+        let mapinfo = Box::new(self.logic.map.borrow().clone());
         let mut inf = RefCell::borrow(&self.logic.system).collect_info()?;
         inf.push(mapinfo);
         return Ok(inf);
