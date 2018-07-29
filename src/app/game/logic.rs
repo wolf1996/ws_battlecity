@@ -150,9 +150,9 @@ impl Game {
     }
 
     pub fn collect_info(&self) -> errors::LogicResult<Vec<Box<InfoObject>>> {
-        let mapinfo = Box::new(self.logic.map.borrow().clone());
+        let mut mapinfo = RefCell::borrow(&self.logic.map).get_info()?;
         let mut inf = RefCell::borrow(&self.logic.system).collect_info()?;
-        inf.push(mapinfo);
+        inf.append(&mut mapinfo);
         return Ok(inf);
     }
 }
