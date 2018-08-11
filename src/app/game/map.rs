@@ -2,6 +2,7 @@ use app::game::errors;
 use app::game::broker::Broker;
 use app::game::events::{Direction, Events, Position};
 use app::game::mapobj::{MapObject, WallMapObj};
+use app::game::maptank::TankMapObj;
 use app::game::logic::info_object_serializer;
 use std::borrow::BorrowMut;
 use app::game::logic::InfoObject;
@@ -36,7 +37,7 @@ impl InfoObject for GameFieldInfo {}
 
 #[derive(Clone)]
 pub struct GameField {
-    maps: HashMap<usize, Box<MapObject>>,
+    maps: HashMap<usize, Rc<RefCell<MapObject>>>,
     map_dim: u32,
     cell_dim: u32,
 }
@@ -55,37 +56,37 @@ impl GameField {
         let mut wl = Rc::new(RefCell::new(WallObj { key: key }));
         self.maps.insert(
             key,
-            Box::new(WallMapObj{
+            Rc::new(RefCell::new(WallMapObj{
                 key: key,
                 pos: Position {
                     x: (self.cell_dim as f32) / 2.0 + 10.0,
                     y: (self.cell_dim as f32) / 2.0,
                 },
             })
-        );
+        ));
         brok.add_system(wl).expect("can't add wall");
         key = brok.produce_key();
         wl = Rc::new(RefCell::new(WallObj { key: key }));
         self.maps.insert(
             key,
-            Box::new(WallMapObj{
+            Rc::new(RefCell::new(WallMapObj{
                 key: key,
                 pos: Position {
                     x: (self.cell_dim as f32) / 2.0,
                     y: (self.cell_dim as f32) / 2.0 + 10.0,
                 },
             })
-        );
+        ));
         brok.add_system(wl).expect("can't add wall");
     }
 
-    pub fn add_new(&mut self, obj :Box<MapObject>) {
-        self.maps.insert(obj.key(), obj);
+    pub fn add_new(&mut self, obj :Rc<RefCell<MapObject>>) {
+        self.maps.insert(obj.borrow().key(), obj.clone());
     }
 
     pub fn get_position(&self, ind: usize) -> errors::LogicResult<Position> {
         match self.maps.get(&ind) {
-            Some(expr) => return Ok(expr.get_position()),
+            Some(expr) => return Ok(expr.borrow().get_position()),
             None => {
                 return Err(errors::GameLogicError {
                     info: "Object is not on map".to_owned(),
@@ -112,8 +113,8 @@ impl GameField {
             if *i == moved {
                 continue;
             }
-            let (xcoll, ycoll) = self.calc_collision(&j.get_position(), new_pos);
-            println!("newpos {:?} secpos {:?}", *new_pos, j.get_info());
+            let (xcoll, ycoll) = self.calc_collision(&j.borrow().get_position(), new_pos);
+            println!("newpos {:?} secpos {:?}", *new_pos, j.borrow().get_info());
             println!("xcoll {} ycoll {}", xcoll, ycoll);
             match dir {
                 Direction::Down | Direction::Up => {
@@ -156,7 +157,7 @@ impl GameField {
         d: usize,
     ) -> errors::LogicResult<Vec<Events>> {
         let mut unit_pos = match self.maps.get(&ind) {
-            Some(expr) => expr.get_position(),
+            Some(expr) => expr.borrow().get_position(),
             None => {
                 return Err(errors::GameLogicError {
                     info: "Object is not on map".to_owned(),
@@ -186,7 +187,7 @@ impl GameField {
                 })
             }
         };
-        unit_mut.set_position(unit_pos.clone());
+        RefCell::borrow_mut(unit_mut).set_position(unit_pos.clone());
         let mut res = vec![Events::ChangePosition {
             pos: unit_pos,
             dir: dir.clone(),
@@ -198,7 +199,7 @@ impl GameField {
     pub fn get_info(&self) -> errors::LogicResult<Vec<Box<InfoObject>>> {
         let mut infomap = HashMap::new();
         for (key, ref val) in self.maps.iter() {
-            let info = val.get_info()?;
+            let info = val.borrow().get_info()?;
             infomap.insert(key.clone(), info);
         }
         Ok(vec![Box::new(GameFieldInfo::new(infomap, self.map_dim, self.cell_dim)),])

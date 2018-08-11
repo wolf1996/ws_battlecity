@@ -4,6 +4,11 @@ use app::game::events::{Commands, Events, MessageContainer, Direction};
 use app::game::events::{EventContainer, AddresableEventsList};
 use app::game::logic::{GameObject, InfoObject};
 use app::game::map::GameField;
+use app::game::maptank::TankMapObj;
+use std::rc::Rc;
+use std::cell::RefCell;
+use std::marker::Send;
+use std::any::Any;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Status {
@@ -27,6 +32,8 @@ pub struct Tank {
     id: usize,
     owner: usize,
     state: Status,
+    #[serde(skip_serializing)]
+    map_obj: Rc<RefCell<TankMapObj>>,
 }
 
 impl Tank {
@@ -65,12 +72,13 @@ impl Tank {
         return Ok(());
     }
 
-    pub fn new(id: usize, owner: usize) -> Tank {
+    pub fn new(id: usize, owner: usize, map_obj: Rc<RefCell<TankMapObj>>) -> Tank {
         Tank {
             dir: Direction::Up,
             id: id,
             owner: owner,
-            state: Status::Standing
+            state: Status::Standing,
+            map_obj: map_obj
         }
     }
 }

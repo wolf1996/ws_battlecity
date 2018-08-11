@@ -2,10 +2,13 @@ use app::game::errors;
 use app::game::events::{EventContainer, EventsList, AddresableEventsList, AddresableContainer, AddresType, Events, SpawneReq, Unit};
 use app::game::logic::{GameObject, InfoObject};
 use app::game::map::GameField;
-use app::game::tank::Tank;
+use app::game::tank::{Tank, TankInfo};
+use app::game::maptank::TankMapObj;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use app::game::map_fabric::MapObjectsFabric;
+use std::any::Any;
 
 pub const SYSTEM: usize = 0;
 
@@ -15,6 +18,7 @@ pub struct Broker {
     task_queue: Vec<EventContainer>,
     counter: usize,
     map: Rc<RefCell<GameField>>,
+    map_objects_fabric: MapObjectsFabric,
 }
 
 impl Broker {
@@ -150,13 +154,16 @@ impl Broker {
         user: usize 
     ) -> errors::LogicResult<AddresableEventsList> {
         let key = self.produce_key();
-        let tank = Tank::new(key, user);
+        let mapobj = self.map_objects_fabric.spawn_tank(key);
+        let tank = Tank::new(key, user, mapobj);
         let tank_rc = Rc::new(RefCell::new(tank.clone()));
         self.add_system(tank_rc.clone())?;
         self.subscribe(key, user)?;
         // TODO: отправку реквеста до юзера о
         // заспауненном танке
-        let event = Events::Spawned{owner: user, unit: Unit::Tank(tank.clone())};
+        let inf_box = tank.get_info()?;
+        let inf = inf_box.as_any().downcast_ref::<TankInfo>().unwrap();
+        let event = Events::Spawned{owner: user, unit: Unit::Tank((*inf).clone())};
         let ev = EventContainer{
             unit: user,
             evs: event,
@@ -201,12 +208,14 @@ impl Broker {
     }
 
     pub fn new(map:  Rc<RefCell<GameField>>) -> Broker {
+
         let brok = Broker {
             units: HashMap::new(),
             channels: HashMap::new(),
             task_queue: Vec::new(),
             counter: SYSTEM,
-            map: map,
+            map: map.clone(),
+            map_objects_fabric: MapObjectsFabric::new(map),
         };
         return brok;
     }

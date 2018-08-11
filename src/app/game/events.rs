@@ -55,7 +55,7 @@ pub enum Commands {
 
 #[derive(Debug, Serialize, Clone)]
 pub enum Unit {
-    Tank(tank::Tank),
+    Tank(tank::TankInfo),
     SomeDefaultUnit,
 }
 

@@ -13,10 +13,18 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::rc::Rc;
+use std::any::Any;
 
 const NUM_PLAYERS: usize = 1;
 
-pub trait InfoObject: ESerialize + Send + Debug + InfoObjectClone{
+pub trait AsAny {
+    fn as_any(&self) -> &Any;
+}
+impl<T: Any> AsAny for T {
+    fn as_any(&self) -> &Any { self }
+}
+
+pub trait InfoObject: ESerialize + Send + Debug + InfoObjectClone + Any + AsAny{
 }
 
 trait InfoObjectClone {

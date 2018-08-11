@@ -48,7 +48,7 @@ impl GameObject for User {
         match msg.evs {
             Events::Spawned{owner: _owner, unit: unit} => {
                 if let Unit::Tank(tnk) = unit {
-                    self.units.push(tnk.key());
+                    self.units.push(tnk.id);
                 } else {
                     unimplemented!();
                 }
