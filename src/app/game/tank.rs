@@ -1,5 +1,6 @@
 use app::game::errors;
 use app::game::broker;
+use app::game::mapobj::{MapObject, MovementState};
 use app::game::events::{Commands, Events, MessageContainer, Direction};
 use app::game::events::{EventContainer, AddresableEventsList};
 use app::game::logic::{GameObject, InfoObject};
@@ -10,18 +11,12 @@ use std::cell::RefCell;
 use std::marker::Send;
 use std::any::Any;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum Status {
-    Moving { delta: usize },
-    Standing,
-}
 
 #[derive(Debug, Serialize, Clone)]
 pub struct TankInfo {
     pub dir: Direction,
     pub id: usize,
     pub item: String,
-    pub state: Status,
 }
 
 impl InfoObject for TankInfo {}
@@ -31,7 +26,6 @@ pub struct Tank {
     dir: Direction,
     id: usize,
     owner: usize,
-    state: Status,
     #[serde(skip_serializing)]
     map_obj: Rc<RefCell<TankMapObj>>,
 }
@@ -58,8 +52,26 @@ impl Tank {
         &mut self,
         dir: Direction,
     ) -> errors::LogicResult<()> {
-        self.state = Status::Standing;
-        self.dir = dir;
+        let (_pos, movement) = self.map_obj.borrow_mut().get_movement();
+        let new_state = match movement {
+            MovementState::Moving{
+                dir: dir,
+                vel: vel, 
+            } => {
+                MovementState::Moving{
+                    dir: dir,
+                    vel: vel,
+                }
+            },
+            MovementState::Stay{
+                dir: dir
+            } => {
+                MovementState::Stay{
+                    dir: dir,
+                }
+            },
+        };
+        self.map_obj.borrow_mut().set_movement(new_state);
         return Ok(());
     }
 
@@ -67,8 +79,11 @@ impl Tank {
         &mut self,
         dir: Direction,
     ) -> errors::LogicResult<()> {
-        self.state = Status::Moving { delta: 1 };
-        self.dir = dir;
+        self.map_obj.borrow_mut().set_movement(MovementState::Moving{
+            dir: dir,
+            vel: 5.0, 
+        });
+        print!("Movement set");
         return Ok(());
     }
 
@@ -77,7 +92,6 @@ impl Tank {
             dir: Direction::Up,
             id: id,
             owner: owner,
-            state: Status::Standing,
             map_obj: map_obj
         }
     }
@@ -100,12 +114,7 @@ impl GameObject for Tank {
     fn tick(
         &mut self,
     ) -> errors::LogicResult<AddresableEventsList> {
-        match self.state.clone() {
-            Status::Moving {delta: delta} => {
-                Ok(vec![]) // вот тут надо уточнить
-            }
-            Status::Standing => Ok(vec![]),
-        }
+        Ok(vec![])
     }
 
     fn key(&self) -> usize {
@@ -117,7 +126,6 @@ impl GameObject for Tank {
             dir: self.dir.clone(),
             id: self.id.clone(),
             item: "Tank".to_owned(),
-            state: self.state.clone(),
         };
         Ok(Box::new(tif))
     }

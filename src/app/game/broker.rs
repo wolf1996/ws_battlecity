@@ -24,6 +24,8 @@ pub struct Broker {
 impl Broker {
     pub fn tick(&mut self) -> errors::LogicResult<EventsList> {
         let mut events = self.process_system_queue()?;
+        let mut ev_add = self.map.borrow_mut().tick()?;
+        events.append(&mut ev_add);
         for i in events.clone() {
             self.pass_message_addresable(i)?;
         }

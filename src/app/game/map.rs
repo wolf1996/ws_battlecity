@@ -1,7 +1,7 @@
 use app::game::errors;
 use app::game::broker::Broker;
-use app::game::events::{Direction, Events, Position};
-use app::game::mapobj::{MapObject, WallMapObj};
+use app::game::events::{EventContainer ,Direction, Events, Position, AddresableEventsList, AddresableContainer, AddresType};
+use app::game::mapobj::{MapObject, WallMapObj, MovementState};
 use app::game::maptank::TankMapObj;
 use app::game::logic::info_object_serializer;
 use std::borrow::BorrowMut;
@@ -103,12 +103,13 @@ impl GameField {
 
     fn check_collisions(
         &self,
-        moved: usize,
+        unit: &Rc<RefCell<MapObject>>,
         dir: Direction,
         new_pos: &mut Position,
-    ) -> errors::LogicResult<Vec<Events>> {
+    ) -> errors::LogicResult<AddresableEventsList> {
         // TODO: оптиPositionмизируй это. Жутко прожорливый алгоритм
         let mut evs = Vec::new();
+        let moved = unit.borrow().key();
         for (i, j) in self.maps.iter() {
             if *i == moved {
                 continue;
@@ -124,10 +125,17 @@ impl GameField {
                             Direction::Up => new_pos.y += ycoll,
                             _default => unimplemented!(),
                         }
-                        evs.push(Events::Collision {
-                            fst: moved,
-                            scd: i.clone(),
-                        })
+                        evs.push(AddresableContainer{
+                            addres: vec![AddresType::Broadcast],
+                            events: vec![
+                                EventContainer{
+                                unit: moved.clone(),
+                                evs: Events::Collision {
+                                    fst: moved,
+                                    scd: i.clone(),
+                                }
+                            }]
+                        });
                     }
                 }
                 Direction::Left | Direction::Right => {
@@ -137,10 +145,17 @@ impl GameField {
                             Direction::Right => new_pos.x += xcoll,
                             _default => unimplemented!(),
                         }
-                        evs.push(Events::Collision {
-                            fst: moved,
-                            scd: i.clone(),
-                        })
+                        evs.push(AddresableContainer{
+                            addres: vec![AddresType::Broadcast],
+                            events: vec![
+                                EventContainer{
+                                unit: moved.clone(),
+                                evs: Events::Collision {
+                                    fst: moved,
+                                    scd: i.clone(),
+                                }
+                            }]
+                        });
                     }
                 }
             }
@@ -151,49 +166,62 @@ impl GameField {
     // Direction переделать на reference
     // стал прыгать на 8
     pub fn move_unit(
-        &mut self,
-        ind: usize,
-        dir: Direction,
-        d: usize,
-    ) -> errors::LogicResult<Vec<Events>> {
-        let mut unit_pos = match self.maps.get(&ind) {
-            Some(expr) => expr.borrow().get_position(),
-            None => {
-                return Err(errors::GameLogicError {
-                    info: "Object is not on map".to_owned(),
-                })
-            }
+        &self,
+        unit: &Rc<RefCell<MapObject>>,
+        moving: &MovementState,
+    ) -> errors::LogicResult<AddresableEventsList> {
+        let mut unit_pos = unit.borrow().get_position();
+        let (dir, d) = if let MovementState::Moving{dir: dir, vel: d} = moving {
+            (dir,d)
+        } else {
+            panic!("Отправлено неверное состояние");
         };
         match dir {
             Direction::Down => {
-                unit_pos.y -= d as f32;
+                unit_pos.y -= d;
             }
             Direction::Left => {
-                unit_pos.x -= d as f32;
+                unit_pos.x -= d;
             }
             Direction::Up => {
-                unit_pos.y += d as f32;
+                unit_pos.y += d;
             }
             Direction::Right => {
-                unit_pos.x += d as f32;
+                unit_pos.x += d;
             }
         }
-        let mut coll_check = self.check_collisions(ind, dir.clone(), &mut unit_pos)?;
-        let unit_mut = match self.maps.get_mut(&ind) {
-            Some(expr) => expr,
-            None => {
-                return Err(errors::GameLogicError {
-                    info: "Object is not on map".to_owned(),
-                })
-            }
-        };
-        RefCell::borrow_mut(unit_mut).set_position(unit_pos.clone());
-        let mut res = vec![Events::ChangePosition {
-            pos: unit_pos,
-            dir: dir.clone(),
-        }];
+        let mut coll_check = self.check_collisions(unit, dir.clone(), &mut unit_pos)?;;
+        RefCell::borrow_mut(unit).set_position(unit_pos.clone());
+        
+        let mut res = vec![AddresableContainer{
+            addres: vec![AddresType::Broadcast],
+            events: vec![
+                EventContainer{
+                unit: unit.borrow().key(),
+                evs: Events::ChangePosition {
+                    pos: unit_pos,
+                    dir: dir.clone(),
+                }
+            }]
+        },];
         res.append(&mut coll_check);
         return Ok(res);
+    }
+
+    pub fn tick(&mut self) -> errors::LogicResult<AddresableEventsList>{
+        let mut evs = Vec::new();
+        for (i, j) in self.maps.iter() {
+            let (_pos, unit_move) = j.borrow().get_movement();
+            match unit_move.clone(){
+                MovementState::Moving{dir, vel} => {
+                    let mut one_ev = self.move_unit(j, &unit_move)?;
+                    evs.append(&mut one_ev);
+                }
+                MovementState::Stay{dir} => {
+                }
+            }
+        }
+        Ok(evs)
     }
 
     pub fn get_info(&self) -> errors::LogicResult<Vec<Box<InfoObject>>> {

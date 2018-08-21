@@ -53,6 +53,7 @@ impl GameObject for User {
                     unimplemented!();
                 }
             },
+            Events::ChangePosition{pos: pos, dir: dir} => {},
             _ => unimplemented!(),
         }
         Ok(())

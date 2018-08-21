@@ -53,7 +53,7 @@ impl MapObject for TankMapObj {
     }
 
     fn get_movement(&self) -> (Position, MovementState){
-        (self.pos.clone(), MovementState::Stay{dir: Direction::Up})
+        (self.pos.clone(), self.state.clone())
     }
 
     fn set_movement(&mut self, mstate: MovementState){
